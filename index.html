@@ -16,6 +16,8 @@
         
         .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 5px 0; width: 100%; transition: 0.2s; }
         .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; background-color: #ccc; color: #666; } /* 停用樣式 */
+        
         .btn-primary { background: #007bff; color: white; }
         .btn-danger { background: #dc3545; color: white; }
         .btn-success { background: #28a745; color: white; }
@@ -27,7 +29,7 @@
         #confirm-modal { display: none; background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; animation: blink 1s infinite; margin-bottom: 20px;}
         @keyframes blink { 50% { border-color: transparent; } }
 
-        /* 藍芽掃描列表 */
+        /* 藍牙掃描列表 */
         #bt-scan-list { margin-top: 10px; max-height: 200px; overflow-y: auto; display: none; border: 1px solid #eee; }
         .bt-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; }
         .bt-item:hover { background: #f8f9fa; }
@@ -64,7 +66,7 @@
 
         <div class="card card-admin" style="display:block">
             <h2>📊 系統資訊</h2>
-            <div>連線狀態: <span id="statusText">...</span></div>
+            <div>連線狀態: <span id="statusText">檢查中...</span></div>
             <div>目前等級: <span id="currentLevelTxt">...</span></div>
             <hr>
             <h3>💳 已註冊 RFID</h3>
@@ -72,9 +74,9 @@
             <button class="btn btn-outline" style="margin-top:10px; font-size:0.8em" onclick="clearList('uid')">清空 RFID 名單</button>
             
             <hr>
-            <h3>📱 已綁定藍芽</h3>
+            <h3>📱 已綁定藍牙</h3>
             <div id="btListContainer"><small>讀取中...</small></div>
-            <button class="btn btn-outline" style="margin-top:10px; font-size:0.8em" onclick="clearList('bt')">清空藍芽名單</button>
+            <button class="btn btn-outline" style="margin-top:10px; font-size:0.8em" onclick="clearList('bt')">清空藍牙名單</button>
         </div>
 
         <div class="card card-admin" style="display:block">
@@ -83,13 +85,13 @@
             <label>安全等級:</label>
             <select id="levelSelect" style="width:100%; padding:10px; margin:10px 0;" onchange="updateLevel()">
                 <option value="1">等級 1: 僅 RFID</option>
-                <option value="2">等級 2: RFID + 藍芽驗證</option>
+                <option value="2">等級 2: RFID + 藍牙驗證</option>
                 <option value="3">等級 3: RFID + 手機確認</option>
             </select>
 
             <hr>
             
-            <label>新增藍芽裝置:</label>
+            <label>新增藍牙裝置:</label>
             <button class="btn btn-outline" onclick="scanBluetooth()">掃描並新增</button>
             <div id="bt-scan-list"></div>
 
@@ -166,7 +168,7 @@
             renderList(currentUIDs, 'uidListContainer');
         });
 
-        // 藍芽名單顯示
+        // 藍牙名單顯示 (修正文字為藍牙)
         db.ref('config/authorized_bt_macs_list').on('value', (s) => {
             currentBTs = s.val() || "";
             renderList(currentBTs, 'btListContainer');
@@ -189,11 +191,46 @@
             }
         });
 
+        // --- 連線狀態與 Heartbeat 邏輯 ---
+        let lastSeenTime = 0;
+        const OFFLINE_TIMEOUT = 15000; // 15秒超時設定
+        const statusTextEl = document.getElementById('statusText');
+
+        // 1. 監聽 timestamp 更新
         db.ref('status/last_seen').on('value', s => {
-             // 這裡可以做連線檢查，簡化顯示
-             document.getElementById('statusText').innerText = "ESP32 在線";
-             document.getElementById('statusText').style.color = "green";
+            lastSeenTime = s.val() || 0; 
+            checkConnection(); // 收到訊號立刻更新一次
         });
+
+        // 2. 定時檢查 (每秒檢查一次)
+        setInterval(checkConnection, 1000);
+
+        function checkConnection() {
+            const now = Date.now();
+            const diff = now - lastSeenTime;
+            const adminPanel = document.getElementById('admin-section');
+            // 抓取後台所有可互動元件
+            const adminControls = adminPanel.querySelectorAll('button, select, input');
+
+            if (diff < OFFLINE_TIMEOUT) {
+                // --- 在線 ---
+                statusTextEl.innerHTML = "ESP32 在線 <span style='font-size:0.8em;color:#999'>(訊號穩定)</span>";
+                statusTextEl.style.color = "green";
+                
+                // 啟用按鈕
+                adminControls.forEach(el => el.disabled = false);
+            } else {
+                // --- 離線 ---
+                const secondsOffline = Math.floor(diff / 1000);
+                statusTextEl.innerText = `⚠️ 離線 (失聯 ${secondsOffline}秒)`;
+                statusTextEl.style.color = "red";
+                statusTextEl.style.fontWeight = "bold";
+
+                // 停用按鈕
+                adminControls.forEach(el => el.disabled = true);
+            }
+        }
+
 
         // --- 功能函式 ---
 
@@ -222,7 +259,8 @@
 
         // 清空名單
         function clearList(type) {
-            if(confirm("確定要清空所有名單嗎？")) {
+            const name = type === 'uid' ? 'RFID' : '藍牙';
+            if(confirm(`確定要清空所有 ${name} 名單嗎？`)) {
                 const path = type === 'uid' ? 'config/authorized_uids_list' : 'config/authorized_bt_macs_list';
                 db.ref(path).set("");
             }
@@ -243,18 +281,13 @@
             });
         }
 
-        // 藍芽掃描與新增 (多組追加邏輯)
+        // 藍牙掃描與新增
         function scanBluetooth() {
             const list = document.getElementById('bt-scan-list');
             list.style.display = 'none';
             db.ref('temp/bt_scan_results').remove();
             db.ref('cmd/scan_bt').set(true);
             alert("ESP32 正在掃描，請稍候...");
-            
-            // 監聽掃描結果 (一次性)
-            db.ref('temp/bt_scan_results').once('value').then(() => {
-                // 這裡其實應該持續監聽，但為了簡化，我們用原本的全域監聽
-            });
         }
         
         // 監聽掃描結果填入列表
