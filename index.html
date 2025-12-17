@@ -16,7 +16,7 @@
         
         .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 5px 0; width: 100%; transition: 0.2s; }
         .btn:hover { opacity: 0.9; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; background-color: #ccc; color: #666; } /* 停用樣式 */
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; background-color: #ccc; }
         
         .btn-primary { background: #007bff; color: white; }
         .btn-danger { background: #dc3545; color: white; }
@@ -26,10 +26,25 @@
 
         .tag { display: inline-block; background: #e9ecef; padding: 5px 10px; border-radius: 15px; margin: 3px; font-size: 0.9em; border: 1px solid #ced4da;}
         
+        /* 狀態盒樣式 */
+        .status-box { padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 1.1em;}
+        .status-open { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-close { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* Logs 樣式 */
+        .log-entry { font-size: 0.9em; padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .log-allow { border-left: 4px solid #28a745; background: #f0fff4; }
+        .log-deny { border-left: 4px solid #dc3545; background: #fff0f0; }
+
+        /* Toast 樣式 */
+        #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 16px; position: fixed; z-index: 100; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 17px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        
         #confirm-modal { display: none; background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; animation: blink 1s infinite; margin-bottom: 20px;}
         @keyframes blink { 50% { border-color: transparent; } }
 
-        /* 藍牙掃描列表 */
         #bt-scan-list { margin-top: 10px; max-height: 200px; overflow-y: auto; display: none; border: 1px solid #eee; }
         .bt-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; }
         .bt-item:hover { background: #f8f9fa; }
@@ -37,17 +52,21 @@
 </head>
 <body>
 
+    <div id="toast">提示訊息</div>
+
     <div class="header-row">
         <h1>🔐 智慧門禁系統</h1>
         <div class="mode-badge" onclick="switchMode()" id="modeBtn">切換至後台</div>
     </div>
 
+    <div id="globalStatus" class="status-box status-close">
+        門鎖狀態: <span id="doorStatusText">讀取中...</span>
+    </div>
+
     <div id="user-section">
         <div class="card card-user">
             <h2>👤 使用者面板</h2>
-            <div style="font-size: 1.2em; text-align: center; margin: 20px 0;">
-                門鎖狀態: <span id="doorStatusUser" style="font-weight:bold">...</span>
-            </div>
+            <p style="text-align:center; color:#666;">請刷卡進入。若需管理功能請切換至後台。</p>
             
             <div id="confirm-modal">
                 <h3>⚠️ 開門請求 (Level 3)</h3>
@@ -57,48 +76,51 @@
         </div>
     </div>
 
-    <div id="admin-section" style="display:none;">
+    <div id="admin-section">
         
-        <div class="card card-admin" style="display:block">
-            <h2>🎮 遠端控制</h2>
+        <div class="card card-admin">
+            <h2>🎮 遠端控制 & 監控</h2>
+            <div style="margin-bottom: 10px;">
+                ESP32 連線: <span id="statusText">檢查中...</span>
+                <span style="font-size:0.8em; color:#999; margin-left:10px;">(最後訊號: <span id="lastSeenTime">--</span>)</span>
+            </div>
             <button class="btn btn-danger btn-big-toggle" onclick="remoteOpen()">一鍵開門 / 關門</button>
         </div>
 
-        <div class="card card-admin" style="display:block">
-            <h2>📊 系統資訊</h2>
-            <div>連線狀態: <span id="statusText">檢查中...</span></div>
-            <div>目前等級: <span id="currentLevelTxt">...</span></div>
-            <hr>
-            <h3>💳 已註冊 RFID</h3>
-            <div id="uidListContainer"><small>讀取中...</small></div>
-            <button class="btn btn-outline" style="margin-top:10px; font-size:0.8em" onclick="clearList('uid')">清空 RFID 名單</button>
-            
-            <hr>
-            <h3>📱 已綁定藍牙</h3>
-            <div id="btListContainer"><small>讀取中...</small></div>
-            <button class="btn btn-outline" style="margin-top:10px; font-size:0.8em" onclick="clearList('bt')">清空藍牙名單</button>
+        <div class="card card-admin">
+            <h2>📝 最近進出紀錄 (Logs)</h2>
+            <div id="logs-container" style="max-height: 300px; overflow-y: auto; border:1px solid #eee; border-radius:8px;">
+                <div style="padding:20px; text-align:center; color:#999">載入中...</div>
+            </div>
+            <button class="btn btn-outline" onclick="clearLogs()" style="margin-top:10px; font-size:0.8em;">清空紀錄</button>
         </div>
 
-        <div class="card card-admin" style="display:block">
+        <div class="card card-admin">
             <h2>⚙️ 安全設定</h2>
             
-            <label>安全等級:</label>
-            <select id="levelSelect" style="width:100%; padding:10px; margin:10px 0;" onchange="updateLevel()">
-                <option value="1">等級 1: 僅 RFID</option>
-                <option value="2">等級 2: RFID + 藍牙驗證</option>
-                <option value="3">等級 3: RFID + 手機確認</option>
+            <label>安全等級 (目前: <span id="currentLevelTxt">-</span>)</label>
+            <select id="levelSelect" style="width:100%; padding:10px; margin:5px 0;" onchange="updateLevel()">
+                <option value="1">Level 1: 僅 RFID</option>
+                <option value="2">Level 2: RFID + 藍牙驗證</option>
+                <option value="3">Level 3: RFID + 手機確認</option>
             </select>
 
             <hr>
             
-            <label>新增藍牙裝置:</label>
-            <button class="btn btn-outline" onclick="scanBluetooth()">掃描並新增</button>
-            <div id="bt-scan-list"></div>
-
+            <h3>💳 RFID 管理</h3>
+            <div id="uidListContainer"><small>讀取中...</small></div>
+            <button class="btn btn-primary" id="regBtn" onclick="toggleRegisterMode()">進入註冊模式</button>
+            <button class="btn btn-outline" style="margin-top:5px; font-size:0.8em; float:right;" onclick="clearList('uid')">清空名單</button>
+            <div style="clear:both"></div>
+            
             <hr>
             
-            <label>新增 RFID 卡片:</label>
-            <button class="btn btn-primary" id="regBtn" onclick="toggleRegisterMode()">進入註冊模式</button>
+            <h3>📱 藍牙裝置 (MAC)</h3>
+            <div id="btListContainer"><small>讀取中...</small></div>
+            <button class="btn btn-outline" onclick="scanBluetooth()">掃描並新增藍牙</button>
+            <button class="btn btn-outline" style="margin-top:5px; font-size:0.8em; float:right;" onclick="clearList('bt')">清空名單</button>
+            <div style="clear:both"></div>
+            <div id="bt-scan-list"></div>
         </div>
     </div>
 
@@ -106,6 +128,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <script>
+        // --- 請將此處替換為你的 Firebase Config ---
         const firebaseConfig = {
             apiKey: "AIzaSyBr9BNcRZItSaanoztoEO3NRLmXaYOvzHg",
             authDomain: "smart-door-8677e.firebaseapp.com",
@@ -122,8 +145,9 @@
         
         let currentUIDs = "";
         let currentBTs = "";
+        let lastTs = 0; // 用於避免重複顯示 Toast
 
-        // --- 介面切換邏輯 ---
+        // --- 1. 介面切換邏輯 ---
         let isAdmin = false;
         function switchMode() {
             if (!isAdmin) {
@@ -131,7 +155,10 @@
                 if (pwd === "123") { // 簡易密碼檢查
                     isAdmin = true;
                     document.getElementById('user-section').style.display = 'none';
-                    document.getElementById('admin-section').style.display = 'block';
+                    // 顯示所有 class 為 card-admin 的元素
+                    const admins = document.querySelectorAll('.card-admin');
+                    admins.forEach(el => el.style.display = 'block');
+                    
                     document.getElementById('modeBtn').innerText = "切換回使用者";
                     document.getElementById('modeBtn').style.background = "#ffc107";
                 } else {
@@ -140,46 +167,151 @@
             } else {
                 isAdmin = false;
                 document.getElementById('user-section').style.display = 'block';
-                document.getElementById('admin-section').style.display = 'none';
+                const admins = document.querySelectorAll('.card-admin');
+                admins.forEach(el => el.style.display = 'none');
+                
                 document.getElementById('modeBtn').innerText = "切換至後台";
                 document.getElementById('modeBtn').style.background = "#eee";
             }
         }
 
-        // --- Firebase 監聽 ---
-        
-        // 門鎖狀態
+        // --- 2. 門鎖狀態監聽 (UI 同步) ---
         db.ref('status/door_open').on('value', (s) => {
             const isOpen = s.val();
-            const txt = isOpen ? "🔓 開啟" : "🔒 關閉";
-            const color = isOpen ? "green" : "red";
-            document.getElementById('doorStatusUser').innerText = txt;
-            document.getElementById('doorStatusUser').style.color = color;
+            const box = document.getElementById('globalStatus');
+            const txt = document.getElementById('doorStatusText');
+            if (isOpen) {
+                box.className = "status-box status-open";
+                txt.innerText = "🔓 開啟";
+            } else {
+                box.className = "status-box status-close";
+                txt.innerText = "🔒 關閉";
+            }
         });
 
-        // Level 3 請求
+        // --- 3. 刷卡即時回饋 (Toast) ---
+        db.ref('status/auth_latest').on('value', (s) => {
+            const data = s.val();
+            if (!data) return;
+            // 檢查是否是新訊息
+            if (data.ts && data.ts !== lastTs) {
+                lastTs = data.ts;
+                showToast(data.success, data.msg);
+            }
+        });
+
+        function showToast(success, msg) {
+            const x = document.getElementById("toast");
+            x.innerText = (success ? "✅ " : "❌ ") + msg;
+            x.style.backgroundColor = success ? "#28a745" : "#dc3545";
+            x.className = "show";
+            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+        }
+
+        // --- 4. 進出紀錄 (Logs) 監聽 ---
+        db.ref('logs').limitToLast(20).on('value', (snapshot) => {
+            const container = document.getElementById('logs-container');
+            container.innerHTML = "";
+            const logs = [];
+            snapshot.forEach(child => logs.unshift(child.val())); // 反轉順序，新的在上面
+
+            if (logs.length === 0) {
+                container.innerHTML = "<div style='padding:20px; text-align:center; color:#999'>暫無紀錄</div>";
+                return;
+            }
+
+            logs.forEach(log => {
+                const div = document.createElement('div');
+                const isAllow = (log.result === 'allow');
+                div.className = `log-entry ${isAllow ? 'log-allow' : 'log-deny'}`;
+                div.innerHTML = `
+                    <div>
+                        <strong>${isAllow ? '允許' : '拒絕'}</strong> 
+                        <span style="font-size:0.8em; color:#666">(${log.type})</span><br>
+                        <small style="color:#888">UID: ${log.uid}</small>
+                    </div>
+                    <div style="text-align:right">
+                        <small style="font-weight:bold">${log.msg}</small>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        });
+
+        // --- 5. 連線狀態判定 (修正版) ---
+        let lastSeenTimestamp = 0;
+        const statusTextEl = document.getElementById('statusText');
+        const lastSeenEl = document.getElementById('lastSeenTime');
+
+        db.ref('status/last_seen').on('value', s => {
+            // 當資料庫有變動時，更新本地計時基準
+            lastSeenTimestamp = Date.now();
+            updateConnectionUI(0);
+        });
+
+        // 每秒檢查一次
+        setInterval(() => {
+            if (lastSeenTimestamp === 0) return;
+            const diff = Math.floor((Date.now() - lastSeenTimestamp) / 1000);
+            updateConnectionUI(diff);
+        }, 1000);
+
+        function updateConnectionUI(diff) {
+            lastSeenEl.innerText = `${diff} 秒前`;
+            const adminControls = document.querySelectorAll('#admin-section button, #admin-section select');
+            
+            if (diff < 15) { // 15秒內有訊號算在線
+                statusTextEl.innerHTML = "<span style='color:green; font-weight:bold'>● 線上</span>";
+                adminControls.forEach(el => el.disabled = false);
+            } else {
+                statusTextEl.innerHTML = "<span style='color:red; font-weight:bold'>⚠️ 離線</span>";
+                adminControls.forEach(el => el.disabled = true);
+            }
+        }
+
+        // --- 其他功能函式 ---
+
+        // Level 3 請求監聽
         db.ref('status/request_access').on('value', s => {
             document.getElementById('confirm-modal').style.display = s.val() ? 'block' : 'none';
         });
 
-        // RFID 名單顯示
-        db.ref('config/authorized_uids_list').on('value', (s) => {
-            currentUIDs = s.val() || "";
-            renderList(currentUIDs, 'uidListContainer');
-        });
+        function grantAccess() {
+            db.ref('status/grant_access').set(true);
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
 
-        // 藍牙名單顯示 (修正文字為藍牙)
-        db.ref('config/authorized_bt_macs_list').on('value', (s) => {
-            currentBTs = s.val() || "";
-            renderList(currentBTs, 'btListContainer');
-        });
+        function remoteOpen() {
+            if(confirm("確定要遠端操作門鎖嗎？")) {
+                db.ref('cmd/remote_open').set(true);
+            }
+        }
 
-        // 系統設定狀態
+        function updateLevel() {
+            db.ref('config/security_level').set(parseInt(document.getElementById('levelSelect').value));
+        }
+
+        function toggleRegisterMode() {
+            db.ref('config/system_mode').set('register');
+        }
+
+        function clearLogs() {
+            if(confirm("確定清空所有紀錄？")) db.ref('logs').remove();
+        }
+        
+        function clearList(type) {
+            if(confirm("確定清空名單？此操作無法復原。")) {
+                const path = type === 'uid' ? 'config/authorized_uids_list' : 'config/authorized_bt_macs_list';
+                db.ref(path).set("");
+            }
+        }
+
+        // 監聽並顯示設定值
         db.ref('config/security_level').on('value', s => {
             document.getElementById('levelSelect').value = s.val();
             document.getElementById('currentLevelTxt').innerText = s.val();
         });
-        
+
         db.ref('config/system_mode').on('value', s => {
             const btn = document.getElementById('regBtn');
             if (s.val() === 'register') {
@@ -191,82 +323,13 @@
             }
         });
 
-        // --- 連線狀態與 Heartbeat 邏輯 ---
-        let lastSeenTime = 0;
-        const OFFLINE_TIMEOUT = 15000; // 15秒超時設定
-        const statusTextEl = document.getElementById('statusText');
-
-        // 1. 監聽 timestamp 更新
-        db.ref('status/last_seen').on('value', s => {
-            lastSeenTime = s.val() || 0; 
-            checkConnection(); // 收到訊號立刻更新一次
+        // 列表渲染
+        db.ref('config/authorized_uids_list').on('value', (s) => renderList(s.val(), 'uidListContainer'));
+        db.ref('config/authorized_bt_macs_list').on('value', (s) => {
+            currentBTs = s.val() || "";
+            renderList(s.val(), 'btListContainer');
         });
 
-        // 2. 定時檢查 (每秒檢查一次)
-        setInterval(checkConnection, 1000);
-
-        function checkConnection() {
-            const now = Date.now();
-            const diff = now - lastSeenTime;
-            const adminPanel = document.getElementById('admin-section');
-            // 抓取後台所有可互動元件
-            const adminControls = adminPanel.querySelectorAll('button, select, input');
-
-            if (diff < OFFLINE_TIMEOUT) {
-                // --- 在線 ---
-                statusTextEl.innerHTML = "ESP32 在線 <span style='font-size:0.8em;color:#999'>(訊號穩定)</span>";
-                statusTextEl.style.color = "green";
-                
-                // 啟用按鈕
-                adminControls.forEach(el => el.disabled = false);
-            } else {
-                // --- 離線 ---
-                const secondsOffline = Math.floor(diff / 1000);
-                statusTextEl.innerText = `⚠️ 離線 (失聯 ${secondsOffline}秒)`;
-                statusTextEl.style.color = "red";
-                statusTextEl.style.fontWeight = "bold";
-
-                // 停用按鈕
-                adminControls.forEach(el => el.disabled = true);
-            }
-        }
-
-
-        // --- 功能函式 ---
-
-        // 遠端開門
-        function remoteOpen() {
-            if(confirm("確定要遠端觸發門鎖嗎？")) {
-                db.ref('cmd/remote_open').set(true);
-            }
-        }
-
-        // 批准 Level 3
-        function grantAccess() {
-            db.ref('status/grant_access').set(true);
-            document.getElementById('confirm-modal').style.display = 'none';
-        }
-
-        // 更新等級
-        function updateLevel() {
-            db.ref('config/security_level').set(parseInt(document.getElementById('levelSelect').value));
-        }
-
-        // 註冊 RFID
-        function toggleRegisterMode() {
-            db.ref('config/system_mode').set('register');
-        }
-
-        // 清空名單
-        function clearList(type) {
-            const name = type === 'uid' ? 'RFID' : '藍牙';
-            if(confirm(`確定要清空所有 ${name} 名單嗎？`)) {
-                const path = type === 'uid' ? 'config/authorized_uids_list' : 'config/authorized_bt_macs_list';
-                db.ref(path).set("");
-            }
-        }
-
-        // 顯示標籤函式
         function renderList(str, elementId) {
             const container = document.getElementById(elementId);
             container.innerHTML = "";
@@ -281,16 +344,15 @@
             });
         }
 
-        // 藍牙掃描與新增
+        // 藍牙掃描
         function scanBluetooth() {
             const list = document.getElementById('bt-scan-list');
             list.style.display = 'none';
             db.ref('temp/bt_scan_results').remove();
             db.ref('cmd/scan_bt').set(true);
-            alert("ESP32 正在掃描，請稍候...");
+            alert("ESP32 正在掃描 (需約5秒)，請稍候...");
         }
-        
-        // 監聽掃描結果填入列表
+
         db.ref('temp/bt_scan_results').on('value', s => {
             const devices = s.val();
             const list = document.getElementById('bt-scan-list');
@@ -309,11 +371,7 @@
         });
 
         function addBluetooth(newMac) {
-            // 檢查是否已存在
-            if (currentBTs.includes(newMac)) {
-                alert("此裝置已在名單中");
-                return;
-            }
+            if (currentBTs.includes(newMac)) { alert("此裝置已在名單中"); return; }
             if (confirm(`將 ${newMac} 加入開門名單?`)) {
                 let newList = currentBTs;
                 if (newList.length > 0) newList += ",";
@@ -322,7 +380,6 @@
                 document.getElementById('bt-scan-list').style.display = 'none';
             }
         }
-
     </script>
 </body>
 </html>
