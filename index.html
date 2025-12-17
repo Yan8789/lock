@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 智慧門禁</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f0f2f5; color: #333; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .card-admin { border-left: 5px solid #dc3545; display: none; } /* 預設隱藏後台 */
+        .card-user { border-left: 5px solid #28a745; }
+        h2 { margin-top: 0; font-size: 1.2em; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .mode-badge { padding: 5px 10px; border-radius: 15px; font-size: 0.8em; font-weight: bold; background: #eee; cursor: pointer;}
+        
+        .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 5px 0; width: 100%; transition: 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-outline { background: transparent; border: 1px solid #007bff; color: #007bff; }
+        .btn-big-toggle { font-size: 1.2em; font-weight: bold; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+        .tag { display: inline-block; background: #e9ecef; padding: 5px 10px; border-radius: 15px; margin: 3px; font-size: 0.9em; border: 1px solid #ced4da;}
+        
+        #confirm-modal { display: none; background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; animation: blink 1s infinite; margin-bottom: 20px;}
+        @keyframes blink { 50% { border-color: transparent; } }
+
+        /* 藍芽掃描列表 */
+        #bt-scan-list { margin-top: 10px; max-height: 200px; overflow-y: auto; display: none; border: 1px solid #eee; }
+        .bt-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; }
+        .bt-item:hover { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+    <div class="header-row">
+        <h1>🔐 智慧門禁系統</h1>
+        <div class="mode-badge" onclick="switchMode()" id="modeBtn">切換至後台</div>
+    </div>
+
+    <div id="user-section">
+        <div class="card card-user">
+            <h2>👤 使用者面板</h2>
+            <div style="font-size: 1.2em; text-align: center; margin: 20px 0;">
+                門鎖狀態: <span id="doorStatusUser" style="font-weight:bold">...</span>
+            </div>
+            
+            <div id="confirm-modal">
+                <h3>⚠️ 開門請求 (Level 3)</h3>
+                <p>偵測到正確 RFID，等待您的批准...</p>
+                <button class="btn btn-success" onclick="grantAccess()">批准開門</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-section" style="display:none;">
+        
+        <div class="card card-admin" style="display:block">
+            <h2>🎮 遠端控制</h2>
+            <button class="btn btn-danger btn-big-toggle" onclick="remoteOpen()">一鍵開門 / 關門</button>
+        </div>
+
+        <div class="card card-admin" style="display:block">
+            <h2>📊 系統資訊</h2>
+            <div>連線狀態: <span id="statusText">...</span></div>
+            <div>目前等級: <span id="currentLevelTxt">...</span></div>
+            <hr>
+            <h3>💳 已註冊 RFID</h3>
+            <div id="uidListContainer"><small>讀取中...</small></div>
+            <button class="btn btn-outline" style="margin-top:10px; font-size:0.8em" onclick="clearList('uid')">清空 RFID 名單</button>
+            
+            <hr>
+            <h3>📱 已綁定藍芽</h3>
+            <div id="btListContainer"><small>讀取中...</small></div>
+            <button class="btn btn-outline" style="margin-top:10px; font-size:0.8em" onclick="clearList('bt')">清空藍芽名單</button>
+        </div>
+
+        <div class="card card-admin" style="display:block">
+            <h2>⚙️ 安全設定</h2>
+            
+            <label>安全等級:</label>
+            <select id="levelSelect" style="width:100%; padding:10px; margin:10px 0;" onchange="updateLevel()">
+                <option value="1">等級 1: 僅 RFID</option>
+                <option value="2">等級 2: RFID + 藍芽驗證</option>
+                <option value="3">等級 3: RFID + 手機確認</option>
+            </select>
+
+            <hr>
+            
+            <label>新增藍芽裝置:</label>
+            <button class="btn btn-outline" onclick="scanBluetooth()">掃描並新增</button>
+            <div id="bt-scan-list"></div>
+
+            <hr>
+            
+            <label>新增 RFID 卡片:</label>
+            <button class="btn btn-primary" id="regBtn" onclick="toggleRegisterMode()">進入註冊模式</button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBr9BNcRZItSaanoztoEO3NRLmXaYOvzHg",
+            authDomain: "smart-door-8677e.firebaseapp.com",
+            databaseURL: "https://smart-door-8677e-default-rtdb.firebaseio.com",
+            projectId: "smart-door-8677e",
+            storageBucket: "smart-door-8677e.firebasestorage.app",
+            messagingSenderId: "846155740238",
+            appId: "1:846155740238:web:797b890a695b71fc78ff1f",
+            measurementId: "G-V17CK6E6X5"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        let currentUIDs = "";
+        let currentBTs = "";
+
+        // --- 介面切換邏輯 ---
+        let isAdmin = false;
+        function switchMode() {
+            if (!isAdmin) {
+                const pwd = prompt("請輸入後台密碼:", "");
+                if (pwd === "admin123") { // 簡易密碼檢查
+                    isAdmin = true;
+                    document.getElementById('user-section').style.display = 'none';
+                    document.getElementById('admin-section').style.display = 'block';
+                    document.getElementById('modeBtn').innerText = "切換回使用者";
+                    document.getElementById('modeBtn').style.background = "#ffc107";
+                } else {
+                    alert("密碼錯誤");
+                }
+            } else {
+                isAdmin = false;
+                document.getElementById('user-section').style.display = 'block';
+                document.getElementById('admin-section').style.display = 'none';
+                document.getElementById('modeBtn').innerText = "切換至後台";
+                document.getElementById('modeBtn').style.background = "#eee";
+            }
+        }
+
+        // --- Firebase 監聽 ---
+        
+        // 門鎖狀態
+        db.ref('status/door_open').on('value', (s) => {
+            const isOpen = s.val();
+            const txt = isOpen ? "🔓 開啟" : "🔒 關閉";
+            const color = isOpen ? "green" : "red";
+            document.getElementById('doorStatusUser').innerText = txt;
+            document.getElementById('doorStatusUser').style.color = color;
+        });
+
+        // Level 3 請求
+        db.ref('status/request_access').on('value', s => {
+            document.getElementById('confirm-modal').style.display = s.val() ? 'block' : 'none';
+        });
+
+        // RFID 名單顯示
+        db.ref('config/authorized_uids_list').on('value', (s) => {
+            currentUIDs = s.val() || "";
+            renderList(currentUIDs, 'uidListContainer');
+        });
+
+        // 藍芽名單顯示
+        db.ref('config/authorized_bt_macs_list').on('value', (s) => {
+            currentBTs = s.val() || "";
+            renderList(currentBTs, 'btListContainer');
+        });
+
+        // 系統設定狀態
+        db.ref('config/security_level').on('value', s => {
+            document.getElementById('levelSelect').value = s.val();
+            document.getElementById('currentLevelTxt').innerText = s.val();
+        });
+        
+        db.ref('config/system_mode').on('value', s => {
+            const btn = document.getElementById('regBtn');
+            if (s.val() === 'register') {
+                btn.innerText = "等待刷卡中...";
+                btn.className = "btn btn-danger";
+            } else {
+                btn.innerText = "進入註冊模式";
+                btn.className = "btn btn-primary";
+            }
+        });
+
+        db.ref('status/last_seen').on('value', s => {
+             // 這裡可以做連線檢查，簡化顯示
+             document.getElementById('statusText').innerText = "ESP32 在線";
+             document.getElementById('statusText').style.color = "green";
+        });
+
+        // --- 功能函式 ---
+
+        // 遠端開門
+        function remoteOpen() {
+            if(confirm("確定要遠端觸發門鎖嗎？")) {
+                db.ref('cmd/remote_open').set(true);
+            }
+        }
+
+        // 批准 Level 3
+        function grantAccess() {
+            db.ref('status/grant_access').set(true);
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+
+        // 更新等級
+        function updateLevel() {
+            db.ref('config/security_level').set(parseInt(document.getElementById('levelSelect').value));
+        }
+
+        // 註冊 RFID
+        function toggleRegisterMode() {
+            db.ref('config/system_mode').set('register');
+        }
+
+        // 清空名單
+        function clearList(type) {
+            if(confirm("確定要清空所有名單嗎？")) {
+                const path = type === 'uid' ? 'config/authorized_uids_list' : 'config/authorized_bt_macs_list';
+                db.ref(path).set("");
+            }
+        }
+
+        // 顯示標籤函式
+        function renderList(str, elementId) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = "";
+            if (!str) { container.innerHTML = "<small>無資料</small>"; return; }
+            str.split(',').forEach(item => {
+                if(item) {
+                    const tag = document.createElement('span');
+                    tag.className = 'tag';
+                    tag.innerText = item;
+                    container.appendChild(tag);
+                }
+            });
+        }
+
+        // 藍芽掃描與新增 (多組追加邏輯)
+        function scanBluetooth() {
+            const list = document.getElementById('bt-scan-list');
+            list.style.display = 'none';
+            db.ref('temp/bt_scan_results').remove();
+            db.ref('cmd/scan_bt').set(true);
+            alert("ESP32 正在掃描，請稍候...");
+            
+            // 監聽掃描結果 (一次性)
+            db.ref('temp/bt_scan_results').once('value').then(() => {
+                // 這裡其實應該持續監聽，但為了簡化，我們用原本的全域監聽
+            });
+        }
+        
+        // 監聽掃描結果填入列表
+        db.ref('temp/bt_scan_results').on('value', s => {
+            const devices = s.val();
+            const list = document.getElementById('bt-scan-list');
+            if(devices) {
+                list.style.display = 'block';
+                list.innerHTML = "";
+                for (const k in devices) {
+                    const d = devices[k];
+                    const item = document.createElement('div');
+                    item.className = 'bt-item';
+                    item.innerHTML = `<span>${d.name || "未命名"}</span><span>${d.mac}</span>`;
+                    item.onclick = () => addBluetooth(d.mac);
+                    list.appendChild(item);
+                }
+            }
+        });
+
+        function addBluetooth(newMac) {
+            // 檢查是否已存在
+            if (currentBTs.includes(newMac)) {
+                alert("此裝置已在名單中");
+                return;
+            }
+            if (confirm(`將 ${newMac} 加入開門名單?`)) {
+                let newList = currentBTs;
+                if (newList.length > 0) newList += ",";
+                newList += newMac;
+                db.ref('config/authorized_bt_macs_list').set(newList);
+                document.getElementById('bt-scan-list').style.display = 'none';
+            }
+        }
+
+    </script>
+</body>
+</html>
