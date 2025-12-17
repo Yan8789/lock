@@ -3,50 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 智慧門禁</title>
+    <title>ESP32 智慧門禁控制台</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f0f2f5; color: #333; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .card-admin { border-left: 5px solid #dc3545; display: none; } /* 預設隱藏後台 */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f4f6f9; color: #333; }
+        h1, h2 { color: #2c3e50; }
+        
+        /* 卡片容器樣式 */
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; transition: transform 0.2s; }
+        .card-admin { border-left: 5px solid #dc3545; display: none; } /* 後台預設隱藏 */
         .card-user { border-left: 5px solid #28a745; }
-        h2 { margin-top: 0; font-size: 1.2em; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         
+        /* 標題與按鈕排版 */
         .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .mode-badge { padding: 5px 10px; border-radius: 15px; font-size: 0.8em; font-weight: bold; background: #eee; cursor: pointer;}
+        .mode-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; background: #e2e6ea; cursor: pointer; color: #555;}
+        .mode-badge:hover { background: #dbe2e8; }
         
-        .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 5px 0; width: 100%; transition: 0.2s; }
-        .btn:hover { opacity: 0.9; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; background-color: #ccc; }
+        /* 按鈕樣式 */
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; width: 100%; margin-top: 5px; transition: 0.2s; font-weight: 500;}
+        .btn:hover { filter: brightness(95%); }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         
-        .btn-primary { background: #007bff; color: white; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-outline { background: transparent; border: 1px solid #007bff; color: #007bff; }
-        .btn-big-toggle { font-size: 1.2em; font-weight: bold; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-
-        .tag { display: inline-block; background: #e9ecef; padding: 5px 10px; border-radius: 15px; margin: 3px; font-size: 0.9em; border: 1px solid #ced4da;}
+        .btn-primary { background: #3498db; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-success { background: #2ecc71; color: white; }
+        .btn-outline { background: transparent; border: 1px solid #3498db; color: #3498db; }
+        .btn-outline:hover { background: #ebf5fb; }
         
-        /* 狀態盒樣式 */
-        .status-box { padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 1.1em;}
+        .btn-big { padding: 15px; font-size: 1.1em; margin-bottom: 10px; }
+        
+        /* 狀態標籤 */
+        .tag { display: inline-block; background: #e9ecef; padding: 4px 10px; border-radius: 12px; margin: 2px; font-size: 0.85em; border: 1px solid #dee2e6;}
+        
+        /* 門鎖與連線狀態框 */
+        .status-box { padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 1.1em; display: flex; align-items: center; justify-content: center; gap: 10px;}
         .status-open { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .status-close { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-        /* Logs 樣式 */
-        .log-entry { font-size: 0.9em; padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .log-allow { border-left: 4px solid #28a745; background: #f0fff4; }
-        .log-deny { border-left: 4px solid #dc3545; background: #fff0f0; }
+        /* Log 列表 */
+        .log-entry { font-size: 0.9em; padding: 10px; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; }
+        .log-allow { background-color: #f0fff4; border-left: 3px solid #2ecc71; }
+        .log-deny { background-color: #fff5f5; border-left: 3px solid #e74c3c; }
 
-        /* Toast 樣式 */
-        #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 16px; position: fixed; z-index: 100; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 17px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        /* Toast 提示框 */
+        #toast { visibility: hidden; min-width: 280px; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 12px 20px; position: fixed; z-index: 999; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
         
-        #confirm-modal { display: none; background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; animation: blink 1s infinite; margin-bottom: 20px;}
-        @keyframes blink { 50% { border-color: transparent; } }
+        /* 彈出視窗 */
+        #confirm-modal { display: none; background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 20px; animation: pulse 2s infinite;}
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); } }
 
-        #bt-scan-list { margin-top: 10px; max-height: 200px; overflow-y: auto; display: none; border: 1px solid #eee; }
-        .bt-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; }
+        /* 藍牙掃描清單 */
+        #bt-scan-list { margin-top: 10px; max-height: 200px; overflow-y: auto; display: none; border: 1px solid #eee; border-radius: 6px; }
+        .bt-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; background: #fff; }
         .bt-item:hover { background: #f8f9fa; }
     </style>
 </head>
@@ -55,22 +66,23 @@
     <div id="toast">提示訊息</div>
 
     <div class="header-row">
-        <h1>🔐 智慧門禁系統</h1>
+        <h2>🔐 智慧門禁系統</h2>
         <div class="mode-badge" onclick="switchMode()" id="modeBtn">切換至後台</div>
     </div>
 
     <div id="globalStatus" class="status-box status-close">
-        門鎖狀態: <span id="doorStatusText">讀取中...</span>
+        <span id="doorIcon">🔒</span> 
+        <span id="doorStatusText">讀取中...</span>
     </div>
 
     <div id="user-section">
         <div class="card card-user">
-            <h2>👤 使用者面板</h2>
-            <p style="text-align:center; color:#666;">請刷卡進入。若需管理功能請切換至後台。</p>
+            <h3>👋 訪客面板</h3>
+            <p style="text-align:center; color:#666; margin-bottom:20px;">請感應卡片以進入</p>
             
             <div id="confirm-modal">
-                <h3>⚠️ 開門請求 (Level 3)</h3>
-                <p>偵測到正確 RFID，等待您的批准...</p>
+                <h3 style="margin:0 0 10px 0">⚠️ 手機確認請求</h3>
+                <p>已偵測到 Level 3 權限卡片，等待您的批准...</p>
                 <button class="btn btn-success" onclick="grantAccess()">批准開門</button>
             </div>
         </div>
@@ -79,47 +91,56 @@
     <div id="admin-section">
         
         <div class="card card-admin">
-            <h2>🎮 遠端控制 & 監控</h2>
-            <div style="margin-bottom: 10px;">
-                ESP32 連線: <span id="statusText">檢查中...</span>
-                <span style="font-size:0.8em; color:#999; margin-left:10px;">(最後訊號: <span id="lastSeenTime">--</span>)</span>
+            <h3>📡 裝置與連線</h3>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span>連線狀態: <span id="statusText">檢查中...</span></span>
+                <span style="font-size:0.85em; color:#888;">最後訊號: <span id="lastSeenTime">--</span></span>
             </div>
-            <button class="btn btn-danger btn-big-toggle" onclick="remoteOpen()">一鍵開門 / 關門</button>
+            <button class="btn btn-danger btn-big" onclick="remoteOpen()">一鍵開門 / 關門</button>
         </div>
 
         <div class="card card-admin">
-            <h2>📝 最近進出紀錄 (Logs)</h2>
-            <div id="logs-container" style="max-height: 300px; overflow-y: auto; border:1px solid #eee; border-radius:8px;">
+            <h3>📋 最近進出紀錄</h3>
+            <div id="logs-container" style="max-height: 250px; overflow-y: auto; border:1px solid #eee; border-radius:6px; margin-bottom:10px;">
                 <div style="padding:20px; text-align:center; color:#999">載入中...</div>
             </div>
-            <button class="btn btn-outline" onclick="clearLogs()" style="margin-top:10px; font-size:0.8em;">清空紀錄</button>
+            <button class="btn btn-outline" style="width:auto; float:right; font-size:0.8em; padding:5px 10px;" onclick="clearLogs()">清空紀錄</button>
+            <div style="clear:both"></div>
         </div>
 
         <div class="card card-admin">
-            <h2>⚙️ 安全設定</h2>
+            <h3>⚙️ 安全與權限設定</h3>
             
-            <label>安全等級 (目前: <span id="currentLevelTxt">-</span>)</label>
-            <select id="levelSelect" style="width:100%; padding:10px; margin:5px 0;" onchange="updateLevel()">
-                <option value="1">Level 1: 僅 RFID</option>
-                <option value="2">Level 2: RFID + 藍牙驗證</option>
-                <option value="3">Level 3: RFID + 手機確認</option>
-            </select>
+            <label style="font-weight:bold; display:block; margin-bottom:5px;">
+                目前等級: <span id="currentLevelTxt" style="color:#2980b9">讀取中...</span>
+            </label>
+            <div style="display:flex; gap:10px; margin-bottom: 20px;">
+                <select id="levelSelect" style="flex:1; padding:8px; border-radius:4px; border:1px solid #ddd;">
+                    <option value="1">Level 1: 僅 RFID</option>
+                    <option value="2">Level 2: RFID + 藍牙</option>
+                    <option value="3">Level 3: RFID + 手機確認</option>
+                </select>
+                <button class="btn btn-primary" style="width:auto; margin:0;" onclick="updateLevelManual()">變更</button>
+            </div>
 
-            <hr>
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
             
-            <h3>💳 RFID 管理</h3>
-            <div id="uidListContainer"><small>讀取中...</small></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>💳 RFID 名單</h4>
+                <button class="btn btn-outline" style="width:auto; font-size:0.8em; padding:4px 8px;" onclick="clearList('uid')">清空</button>
+            </div>
+            <div id="uidListContainer" style="margin-bottom:10px; min-height:30px;"><small>無資料</small></div>
             <button class="btn btn-primary" id="regBtn" onclick="toggleRegisterMode()">進入註冊模式</button>
-            <button class="btn btn-outline" style="margin-top:5px; font-size:0.8em; float:right;" onclick="clearList('uid')">清空名單</button>
-            <div style="clear:both"></div>
             
-            <hr>
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
             
-            <h3>📱 藍牙裝置 (MAC)</h3>
-            <div id="btListContainer"><small>讀取中...</small></div>
-            <button class="btn btn-outline" onclick="scanBluetooth()">掃描並新增藍牙</button>
-            <button class="btn btn-outline" style="margin-top:5px; font-size:0.8em; float:right;" onclick="clearList('bt')">清空名單</button>
-            <div style="clear:both"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>⌚ 藍牙裝置 (MAC)</h4>
+                <button class="btn btn-outline" style="width:auto; font-size:0.8em; padding:4px 8px;" onclick="clearList('bt')">清空</button>
+            </div>
+            <div id="btListContainer" style="margin-bottom:10px; min-height:30px; word-break: break-all;"><small>無資料</small></div>
+            <button class="btn btn-outline" onclick="scanBluetooth()">掃描並新增</button>
+            
             <div id="bt-scan-list"></div>
         </div>
     </div>
@@ -128,7 +149,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <script>
-        // --- 請將此處替換為你的 Firebase Config ---
+        // --- 請填入你的 Firebase 設定 ---
         const firebaseConfig = {
             apiKey: "AIzaSyBr9BNcRZItSaanoztoEO3NRLmXaYOvzHg",
             authDomain: "smart-door-8677e.firebaseapp.com",
@@ -143,57 +164,54 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
-        let currentUIDs = "";
         let currentBTs = "";
-        let lastTs = 0; // 用於避免重複顯示 Toast
+        let lastTs = 0; // 避免重複顯示 Toast
 
-        // --- 1. 介面切換邏輯 ---
+        // 1. 切換前後台 (密碼 123)
         let isAdmin = false;
         function switchMode() {
             if (!isAdmin) {
                 const pwd = prompt("請輸入後台密碼:", "");
-                if (pwd === "123") { // 簡易密碼檢查
+                if (pwd === "123") { 
                     isAdmin = true;
                     document.getElementById('user-section').style.display = 'none';
-                    // 顯示所有 class 為 card-admin 的元素
-                    const admins = document.querySelectorAll('.card-admin');
-                    admins.forEach(el => el.style.display = 'block');
-                    
-                    document.getElementById('modeBtn').innerText = "切換回使用者";
+                    document.querySelectorAll('.card-admin').forEach(el => el.style.display = 'block');
+                    document.getElementById('modeBtn').innerText = "返回使用者";
                     document.getElementById('modeBtn').style.background = "#ffc107";
-                } else {
+                } else if (pwd !== null) {
                     alert("密碼錯誤");
                 }
             } else {
                 isAdmin = false;
                 document.getElementById('user-section').style.display = 'block';
-                const admins = document.querySelectorAll('.card-admin');
-                admins.forEach(el => el.style.display = 'none');
-                
+                document.querySelectorAll('.card-admin').forEach(el => el.style.display = 'none');
                 document.getElementById('modeBtn').innerText = "切換至後台";
-                document.getElementById('modeBtn').style.background = "#eee";
+                document.getElementById('modeBtn').style.background = "#e2e6ea";
             }
         }
 
-        // --- 2. 門鎖狀態監聽 (UI 同步) ---
+        // 2. 門鎖狀態 (UI 同步)
         db.ref('status/door_open').on('value', (s) => {
             const isOpen = s.val();
             const box = document.getElementById('globalStatus');
             const txt = document.getElementById('doorStatusText');
+            const icon = document.getElementById('doorIcon');
+            
             if (isOpen) {
                 box.className = "status-box status-open";
-                txt.innerText = "🔓 開啟";
+                txt.innerText = "已開啟";
+                icon.innerText = "🔓";
             } else {
                 box.className = "status-box status-close";
-                txt.innerText = "🔒 關閉";
+                txt.innerText = "已上鎖";
+                icon.innerText = "🔒";
             }
         });
 
-        // --- 3. 刷卡即時回饋 (Toast) ---
+        // 3. 刷卡即時回饋 (Toast)
         db.ref('status/auth_latest').on('value', (s) => {
             const data = s.val();
             if (!data) return;
-            // 檢查是否是新訊息
             if (data.ts && data.ts !== lastTs) {
                 lastTs = data.ts;
                 showToast(data.success, data.msg);
@@ -203,17 +221,17 @@
         function showToast(success, msg) {
             const x = document.getElementById("toast");
             x.innerText = (success ? "✅ " : "❌ ") + msg;
-            x.style.backgroundColor = success ? "#28a745" : "#dc3545";
+            x.style.backgroundColor = success ? "#2ecc71" : "#e74c3c";
             x.className = "show";
-            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+            setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
         }
 
-        // --- 4. 進出紀錄 (Logs) 監聽 ---
-        db.ref('logs').limitToLast(20).on('value', (snapshot) => {
+        // 4. 進出紀錄 (Logs)
+        db.ref('logs').limitToLast(15).on('value', (snapshot) => {
             const container = document.getElementById('logs-container');
             container.innerHTML = "";
             const logs = [];
-            snapshot.forEach(child => logs.unshift(child.val())); // 反轉順序，新的在上面
+            snapshot.forEach(child => logs.unshift(child.val())); 
 
             if (logs.length === 0) {
                 container.innerHTML = "<div style='padding:20px; text-align:center; color:#999'>暫無紀錄</div>";
@@ -227,8 +245,8 @@
                 div.innerHTML = `
                     <div>
                         <strong>${isAllow ? '允許' : '拒絕'}</strong> 
-                        <span style="font-size:0.8em; color:#666">(${log.type})</span><br>
-                        <small style="color:#888">UID: ${log.uid}</small>
+                        <span style="font-size:0.8em; color:#666; margin-left:5px;">(${log.type})</span>
+                        <div style="font-size:0.8em; color:#888">UID: ${log.uid}</div>
                     </div>
                     <div style="text-align:right">
                         <small style="font-weight:bold">${log.msg}</small>
@@ -238,18 +256,16 @@
             });
         });
 
-        // --- 5. 連線狀態判定 (修正版) ---
+        // 5. 連線狀態判定 (15秒超時)
         let lastSeenTimestamp = 0;
         const statusTextEl = document.getElementById('statusText');
         const lastSeenEl = document.getElementById('lastSeenTime');
 
-        db.ref('status/last_seen').on('value', s => {
-            // 當資料庫有變動時，更新本地計時基準
+        db.ref('status/last_seen').on('value', () => {
             lastSeenTimestamp = Date.now();
             updateConnectionUI(0);
         });
 
-        // 每秒檢查一次
         setInterval(() => {
             if (lastSeenTimestamp === 0) return;
             const diff = Math.floor((Date.now() - lastSeenTimestamp) / 1000);
@@ -258,74 +274,71 @@
 
         function updateConnectionUI(diff) {
             lastSeenEl.innerText = `${diff} 秒前`;
-            const adminControls = document.querySelectorAll('#admin-section button, #admin-section select');
+            const controls = document.querySelectorAll('#admin-section button, #admin-section select');
             
-            if (diff < 15) { // 15秒內有訊號算在線
-                statusTextEl.innerHTML = "<span style='color:green; font-weight:bold'>● 線上</span>";
-                adminControls.forEach(el => el.disabled = false);
+            if (diff < 15) { 
+                statusTextEl.innerHTML = "<span style='color:#2ecc71; font-weight:bold'>● 線上</span>";
+                controls.forEach(el => el.disabled = false);
             } else {
-                statusTextEl.innerHTML = "<span style='color:red; font-weight:bold'>⚠️ 離線</span>";
-                adminControls.forEach(el => el.disabled = true);
+                statusTextEl.innerHTML = "<span style='color:#e74c3c; font-weight:bold'>⚠️ 離線</span>";
+                controls.forEach(el => el.disabled = true);
             }
         }
 
-        // --- 其他功能函式 ---
+        // --- 功能函式 ---
 
-        // Level 3 請求監聽
+        // 安全等級
+        db.ref('config/security_level').on('value', s => {
+            document.getElementById('currentLevelTxt').innerText = "Level " + s.val();
+            document.getElementById('levelSelect').value = s.val();
+        });
+        
+        function updateLevelManual() {
+            const val = document.getElementById('levelSelect').value;
+            if(confirm(`確定將安全等級改為 Level ${val} ?`)) {
+                db.ref('config/security_level').set(parseInt(val));
+                alert("指令已發送");
+            }
+        }
+
+        // 遠端開門
+        function remoteOpen() {
+            if(confirm("確定要執行遠端開/關門？")) db.ref('cmd/remote_open').set(true);
+        }
+
+        // Level 3 批准
         db.ref('status/request_access').on('value', s => {
             document.getElementById('confirm-modal').style.display = s.val() ? 'block' : 'none';
         });
-
         function grantAccess() {
             db.ref('status/grant_access').set(true);
             document.getElementById('confirm-modal').style.display = 'none';
         }
 
-        function remoteOpen() {
-            if(confirm("確定要遠端操作門鎖嗎？")) {
-                db.ref('cmd/remote_open').set(true);
-            }
-        }
-
-        function updateLevel() {
-            db.ref('config/security_level').set(parseInt(document.getElementById('levelSelect').value));
-        }
-
-        function toggleRegisterMode() {
-            db.ref('config/system_mode').set('register');
-        }
-
-        function clearLogs() {
-            if(confirm("確定清空所有紀錄？")) db.ref('logs').remove();
-        }
-        
-        function clearList(type) {
-            if(confirm("確定清空名單？此操作無法復原。")) {
-                const path = type === 'uid' ? 'config/authorized_uids_list' : 'config/authorized_bt_macs_list';
-                db.ref(path).set("");
-            }
-        }
-
-        // 監聽並顯示設定值
-        db.ref('config/security_level').on('value', s => {
-            document.getElementById('levelSelect').value = s.val();
-            document.getElementById('currentLevelTxt').innerText = s.val();
-        });
-
+        // 註冊模式
         db.ref('config/system_mode').on('value', s => {
             const btn = document.getElementById('regBtn');
             if (s.val() === 'register') {
-                btn.innerText = "等待刷卡中...";
+                btn.innerText = "⏳ 等待感應卡片...";
                 btn.className = "btn btn-danger";
             } else {
                 btn.innerText = "進入註冊模式";
                 btn.className = "btn btn-primary";
             }
         });
+        function toggleRegisterMode() { db.ref('config/system_mode').set('register'); }
+
+        // 清除資料
+        function clearLogs() { if(confirm("清空紀錄？")) db.ref('logs').remove(); }
+        function clearList(type) {
+            if(confirm("確定清空？此操作無法復原。")) {
+                db.ref(type === 'uid' ? 'config/authorized_uids_list' : 'config/authorized_bt_macs_list').set("");
+            }
+        }
 
         // 列表渲染
-        db.ref('config/authorized_uids_list').on('value', (s) => renderList(s.val(), 'uidListContainer'));
-        db.ref('config/authorized_bt_macs_list').on('value', (s) => {
+        db.ref('config/authorized_uids_list').on('value', s => renderList(s.val(), 'uidListContainer'));
+        db.ref('config/authorized_bt_macs_list').on('value', s => {
             currentBTs = s.val() || "";
             renderList(s.val(), 'btListContainer');
         });
@@ -333,7 +346,7 @@
         function renderList(str, elementId) {
             const container = document.getElementById(elementId);
             container.innerHTML = "";
-            if (!str) { container.innerHTML = "<small>無資料</small>"; return; }
+            if (!str) { container.innerHTML = "<small style='color:#999'>無資料</small>"; return; }
             str.split(',').forEach(item => {
                 if(item) {
                     const tag = document.createElement('span');
@@ -346,8 +359,7 @@
 
         // 藍牙掃描
         function scanBluetooth() {
-            const list = document.getElementById('bt-scan-list');
-            list.style.display = 'none';
+            document.getElementById('bt-scan-list').style.display = 'none';
             db.ref('temp/bt_scan_results').remove();
             db.ref('cmd/scan_bt').set(true);
             alert("ESP32 正在掃描 (需約5秒)，請稍候...");
@@ -363,7 +375,7 @@
                     const d = devices[k];
                     const item = document.createElement('div');
                     item.className = 'bt-item';
-                    item.innerHTML = `<span>${d.name || "未命名"}</span><span>${d.mac}</span>`;
+                    item.innerHTML = `<span>${d.name || "未命名"}</span><span style="font-family:monospace">${d.mac}</span>`;
                     item.onclick = () => addBluetooth(d.mac);
                     list.appendChild(item);
                 }
@@ -371,11 +383,1610 @@
         });
 
         function addBluetooth(newMac) {
-            if (currentBTs.includes(newMac)) { alert("此裝置已在名單中"); return; }
-            if (confirm(`將 ${newMac} 加入開門名單?`)) {
+            // 自動移除冒號，確保格式統一
+            const cleanMac = newMac.replace(/:/g, '').toUpperCase();
+            if (currentBTs.includes(cleanMac)) { alert("此裝置已在名單中"); return; }
+            
+            if (confirm(`將 ${newMac} (儲存為 ${cleanMac}) 加入名單?`)) {
                 let newList = currentBTs;
                 if (newList.length > 0) newList += ",";
-                newList += newMac;
+                newList += cleanMac;
+                db.ref('config/authorized_bt_macs_list').set(newList);
+                document.getElementById('bt-scan-list').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 智慧門禁控制台</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f4f6f9; color: #333; }
+        h1, h2 { color: #2c3e50; }
+        
+        /* 卡片容器樣式 */
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; transition: transform 0.2s; }
+        .card-admin { border-left: 5px solid #dc3545; display: none; } /* 後台預設隱藏 */
+        .card-user { border-left: 5px solid #28a745; }
+        
+        /* 標題與按鈕排版 */
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .mode-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; background: #e2e6ea; cursor: pointer; color: #555;}
+        .mode-badge:hover { background: #dbe2e8; }
+        
+        /* 按鈕樣式 */
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; width: 100%; margin-top: 5px; transition: 0.2s; font-weight: 500;}
+        .btn:hover { filter: brightness(95%); }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .btn-primary { background: #3498db; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-success { background: #2ecc71; color: white; }
+        .btn-outline { background: transparent; border: 1px solid #3498db; color: #3498db; }
+        .btn-outline:hover { background: #ebf5fb; }
+        
+        .btn-big { padding: 15px; font-size: 1.1em; margin-bottom: 10px; }
+        
+        /* 狀態標籤 */
+        .tag { display: inline-block; background: #e9ecef; padding: 4px 10px; border-radius: 12px; margin: 2px; font-size: 0.85em; border: 1px solid #dee2e6;}
+        
+        /* 門鎖與連線狀態框 */
+        .status-box { padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 1.1em; display: flex; align-items: center; justify-content: center; gap: 10px;}
+        .status-open { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-close { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* Log 列表 */
+        .log-entry { font-size: 0.9em; padding: 10px; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; }
+        .log-allow { background-color: #f0fff4; border-left: 3px solid #2ecc71; }
+        .log-deny { background-color: #fff5f5; border-left: 3px solid #e74c3c; }
+
+        /* Toast 提示框 */
+        #toast { visibility: hidden; min-width: 280px; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 12px 20px; position: fixed; z-index: 999; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        
+        /* 彈出視窗 */
+        #confirm-modal { display: none; background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 20px; animation: pulse 2s infinite;}
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); } }
+
+        /* 藍牙掃描清單 */
+        #bt-scan-list { margin-top: 10px; max-height: 200px; overflow-y: auto; display: none; border: 1px solid #eee; border-radius: 6px; }
+        .bt-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; background: #fff; }
+        .bt-item:hover { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+    <div id="toast">提示訊息</div>
+
+    <div class="header-row">
+        <h2>🔐 智慧門禁系統</h2>
+        <div class="mode-badge" onclick="switchMode()" id="modeBtn">切換至後台</div>
+    </div>
+
+    <div id="globalStatus" class="status-box status-close">
+        <span id="doorIcon">🔒</span> 
+        <span id="doorStatusText">讀取中...</span>
+    </div>
+
+    <div id="user-section">
+        <div class="card card-user">
+            <h3>👋 訪客面板</h3>
+            <p style="text-align:center; color:#666; margin-bottom:20px;">請感應卡片以進入</p>
+            
+            <div id="confirm-modal">
+                <h3 style="margin:0 0 10px 0">⚠️ 手機確認請求</h3>
+                <p>已偵測到 Level 3 權限卡片，等待您的批准...</p>
+                <button class="btn btn-success" onclick="grantAccess()">批准開門</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-section">
+        
+        <div class="card card-admin">
+            <h3>📡 裝置與連線</h3>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span>連線狀態: <span id="statusText">檢查中...</span></span>
+                <span style="font-size:0.85em; color:#888;">最後訊號: <span id="lastSeenTime">--</span></span>
+            </div>
+            <button class="btn btn-danger btn-big" onclick="remoteOpen()">一鍵開門 / 關門</button>
+        </div>
+
+        <div class="card card-admin">
+            <h3>📋 最近進出紀錄</h3>
+            <div id="logs-container" style="max-height: 250px; overflow-y: auto; border:1px solid #eee; border-radius:6px; margin-bottom:10px;">
+                <div style="padding:20px; text-align:center; color:#999">載入中...</div>
+            </div>
+            <button class="btn btn-outline" style="width:auto; float:right; font-size:0.8em; padding:5px 10px;" onclick="clearLogs()">清空紀錄</button>
+            <div style="clear:both"></div>
+        </div>
+
+        <div class="card card-admin">
+            <h3>⚙️ 安全與權限設定</h3>
+            
+            <label style="font-weight:bold; display:block; margin-bottom:5px;">
+                目前等級: <span id="currentLevelTxt" style="color:#2980b9">讀取中...</span>
+            </label>
+            <div style="display:flex; gap:10px; margin-bottom: 20px;">
+                <select id="levelSelect" style="flex:1; padding:8px; border-radius:4px; border:1px solid #ddd;">
+                    <option value="1">Level 1: 僅 RFID</option>
+                    <option value="2">Level 2: RFID + 藍牙</option>
+                    <option value="3">Level 3: RFID + 手機確認</option>
+                </select>
+                <button class="btn btn-primary" style="width:auto; margin:0;" onclick="updateLevelManual()">變更</button>
+            </div>
+
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>💳 RFID 名單</h4>
+                <button class="btn btn-outline" style="width:auto; font-size:0.8em; padding:4px 8px;" onclick="clearList('uid')">清空</button>
+            </div>
+            <div id="uidListContainer" style="margin-bottom:10px; min-height:30px;"><small>無資料</small></div>
+            <button class="btn btn-primary" id="regBtn" onclick="toggleRegisterMode()">進入註冊模式</button>
+            
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>⌚ 藍牙裝置 (MAC)</h4>
+                <button class="btn btn-outline" style="width:auto; font-size:0.8em; padding:4px 8px;" onclick="clearList('bt')">清空</button>
+            </div>
+            <div id="btListContainer" style="margin-bottom:10px; min-height:30px; word-break: break-all;"><small>無資料</small></div>
+            <button class="btn btn-outline" onclick="scanBluetooth()">掃描並新增</button>
+            
+            <div id="bt-scan-list"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        // --- 請填入你的 Firebase 設定 ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBr9BNcRZItSaanoztoEO3NRLmXaYOvzHg",
+            authDomain: "smart-door-8677e.firebaseapp.com",
+            databaseURL: "https://smart-door-8677e-default-rtdb.firebaseio.com",
+            projectId: "smart-door-8677e",
+            storageBucket: "smart-door-8677e.firebasestorage.app",
+            messagingSenderId: "846155740238",
+            appId: "1:846155740238:web:797b890a695b71fc78ff1f",
+            measurementId: "G-V17CK6E6X5"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        let currentBTs = "";
+        let lastTs = 0; // 避免重複顯示 Toast
+
+        // 1. 切換前後台 (密碼 123)
+        let isAdmin = false;
+        function switchMode() {
+            if (!isAdmin) {
+                const pwd = prompt("請輸入後台密碼:", "");
+                if (pwd === "123") { 
+                    isAdmin = true;
+                    document.getElementById('user-section').style.display = 'none';
+                    document.querySelectorAll('.card-admin').forEach(el => el.style.display = 'block');
+                    document.getElementById('modeBtn').innerText = "返回使用者";
+                    document.getElementById('modeBtn').style.background = "#ffc107";
+                } else if (pwd !== null) {
+                    alert("密碼錯誤");
+                }
+            } else {
+                isAdmin = false;
+                document.getElementById('user-section').style.display = 'block';
+                document.querySelectorAll('.card-admin').forEach(el => el.style.display = 'none');
+                document.getElementById('modeBtn').innerText = "切換至後台";
+                document.getElementById('modeBtn').style.background = "#e2e6ea";
+            }
+        }
+
+        // 2. 門鎖狀態 (UI 同步)
+        db.ref('status/door_open').on('value', (s) => {
+            const isOpen = s.val();
+            const box = document.getElementById('globalStatus');
+            const txt = document.getElementById('doorStatusText');
+            const icon = document.getElementById('doorIcon');
+            
+            if (isOpen) {
+                box.className = "status-box status-open";
+                txt.innerText = "已開啟";
+                icon.innerText = "🔓";
+            } else {
+                box.className = "status-box status-close";
+                txt.innerText = "已上鎖";
+                icon.innerText = "🔒";
+            }
+        });
+
+        // 3. 刷卡即時回饋 (Toast)
+        db.ref('status/auth_latest').on('value', (s) => {
+            const data = s.val();
+            if (!data) return;
+            if (data.ts && data.ts !== lastTs) {
+                lastTs = data.ts;
+                showToast(data.success, data.msg);
+            }
+        });
+
+        function showToast(success, msg) {
+            const x = document.getElementById("toast");
+            x.innerText = (success ? "✅ " : "❌ ") + msg;
+            x.style.backgroundColor = success ? "#2ecc71" : "#e74c3c";
+            x.className = "show";
+            setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
+        }
+
+        // 4. 進出紀錄 (Logs)
+        db.ref('logs').limitToLast(15).on('value', (snapshot) => {
+            const container = document.getElementById('logs-container');
+            container.innerHTML = "";
+            const logs = [];
+            snapshot.forEach(child => logs.unshift(child.val())); 
+
+            if (logs.length === 0) {
+                container.innerHTML = "<div style='padding:20px; text-align:center; color:#999'>暫無紀錄</div>";
+                return;
+            }
+
+            logs.forEach(log => {
+                const div = document.createElement('div');
+                const isAllow = (log.result === 'allow');
+                div.className = `log-entry ${isAllow ? 'log-allow' : 'log-deny'}`;
+                div.innerHTML = `
+                    <div>
+                        <strong>${isAllow ? '允許' : '拒絕'}</strong> 
+                        <span style="font-size:0.8em; color:#666; margin-left:5px;">(${log.type})</span>
+                        <div style="font-size:0.8em; color:#888">UID: ${log.uid}</div>
+                    </div>
+                    <div style="text-align:right">
+                        <small style="font-weight:bold">${log.msg}</small>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        });
+
+        // 5. 連線狀態判定 (15秒超時)
+        let lastSeenTimestamp = 0;
+        const statusTextEl = document.getElementById('statusText');
+        const lastSeenEl = document.getElementById('lastSeenTime');
+
+        db.ref('status/last_seen').on('value', () => {
+            lastSeenTimestamp = Date.now();
+            updateConnectionUI(0);
+        });
+
+        setInterval(() => {
+            if (lastSeenTimestamp === 0) return;
+            const diff = Math.floor((Date.now() - lastSeenTimestamp) / 1000);
+            updateConnectionUI(diff);
+        }, 1000);
+
+        function updateConnectionUI(diff) {
+            lastSeenEl.innerText = `${diff} 秒前`;
+            const controls = document.querySelectorAll('#admin-section button, #admin-section select');
+            
+            if (diff < 15) { 
+                statusTextEl.innerHTML = "<span style='color:#2ecc71; font-weight:bold'>● 線上</span>";
+                controls.forEach(el => el.disabled = false);
+            } else {
+                statusTextEl.innerHTML = "<span style='color:#e74c3c; font-weight:bold'>⚠️ 離線</span>";
+                controls.forEach(el => el.disabled = true);
+            }
+        }
+
+        // --- 功能函式 ---
+
+        // 安全等級
+        db.ref('config/security_level').on('value', s => {
+            document.getElementById('currentLevelTxt').innerText = "Level " + s.val();
+            document.getElementById('levelSelect').value = s.val();
+        });
+        
+        function updateLevelManual() {
+            const val = document.getElementById('levelSelect').value;
+            if(confirm(`確定將安全等級改為 Level ${val} ?`)) {
+                db.ref('config/security_level').set(parseInt(val));
+                alert("指令已發送");
+            }
+        }
+
+        // 遠端開門
+        function remoteOpen() {
+            if(confirm("確定要執行遠端開/關門？")) db.ref('cmd/remote_open').set(true);
+        }
+
+        // Level 3 批准
+        db.ref('status/request_access').on('value', s => {
+            document.getElementById('confirm-modal').style.display = s.val() ? 'block' : 'none';
+        });
+        function grantAccess() {
+            db.ref('status/grant_access').set(true);
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+
+        // 註冊模式
+        db.ref('config/system_mode').on('value', s => {
+            const btn = document.getElementById('regBtn');
+            if (s.val() === 'register') {
+                btn.innerText = "⏳ 等待感應卡片...";
+                btn.className = "btn btn-danger";
+            } else {
+                btn.innerText = "進入註冊模式";
+                btn.className = "btn btn-primary";
+            }
+        });
+        function toggleRegisterMode() { db.ref('config/system_mode').set('register'); }
+
+        // 清除資料
+        function clearLogs() { if(confirm("清空紀錄？")) db.ref('logs').remove(); }
+        function clearList(type) {
+            if(confirm("確定清空？此操作無法復原。")) {
+                db.ref(type === 'uid' ? 'config/authorized_uids_list' : 'config/authorized_bt_macs_list').set("");
+            }
+        }
+
+        // 列表渲染
+        db.ref('config/authorized_uids_list').on('value', s => renderList(s.val(), 'uidListContainer'));
+        db.ref('config/authorized_bt_macs_list').on('value', s => {
+            currentBTs = s.val() || "";
+            renderList(s.val(), 'btListContainer');
+        });
+
+        function renderList(str, elementId) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = "";
+            if (!str) { container.innerHTML = "<small style='color:#999'>無資料</small>"; return; }
+            str.split(',').forEach(item => {
+                if(item) {
+                    const tag = document.createElement('span');
+                    tag.className = 'tag';
+                    tag.innerText = item;
+                    container.appendChild(tag);
+                }
+            });
+        }
+
+        // 藍牙掃描
+        function scanBluetooth() {
+            document.getElementById('bt-scan-list').style.display = 'none';
+            db.ref('temp/bt_scan_results').remove();
+            db.ref('cmd/scan_bt').set(true);
+            alert("ESP32 正在掃描 (需約5秒)，請稍候...");
+        }
+
+        db.ref('temp/bt_scan_results').on('value', s => {
+            const devices = s.val();
+            const list = document.getElementById('bt-scan-list');
+            if(devices) {
+                list.style.display = 'block';
+                list.innerHTML = "";
+                for (const k in devices) {
+                    const d = devices[k];
+                    const item = document.createElement('div');
+                    item.className = 'bt-item';
+                    item.innerHTML = `<span>${d.name || "未命名"}</span><span style="font-family:monospace">${d.mac}</span>`;
+                    item.onclick = () => addBluetooth(d.mac);
+                    list.appendChild(item);
+                }
+            }
+        });
+
+        function addBluetooth(newMac) {
+            // 自動移除冒號，確保格式統一
+            const cleanMac = newMac.replace(/:/g, '').toUpperCase();
+            if (currentBTs.includes(cleanMac)) { alert("此裝置已在名單中"); return; }
+            
+            if (confirm(`將 ${newMac} (儲存為 ${cleanMac}) 加入名單?`)) {
+                let newList = currentBTs;
+                if (newList.length > 0) newList += ",";
+                newList += cleanMac;
+                db.ref('config/authorized_bt_macs_list').set(newList);
+                document.getElementById('bt-scan-list').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 智慧門禁控制台</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f4f6f9; color: #333; }
+        h1, h2 { color: #2c3e50; }
+        
+        /* 卡片容器樣式 */
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; transition: transform 0.2s; }
+        .card-admin { border-left: 5px solid #dc3545; display: none; } /* 後台預設隱藏 */
+        .card-user { border-left: 5px solid #28a745; }
+        
+        /* 標題與按鈕排版 */
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .mode-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; background: #e2e6ea; cursor: pointer; color: #555;}
+        .mode-badge:hover { background: #dbe2e8; }
+        
+        /* 按鈕樣式 */
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; width: 100%; margin-top: 5px; transition: 0.2s; font-weight: 500;}
+        .btn:hover { filter: brightness(95%); }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .btn-primary { background: #3498db; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-success { background: #2ecc71; color: white; }
+        .btn-outline { background: transparent; border: 1px solid #3498db; color: #3498db; }
+        .btn-outline:hover { background: #ebf5fb; }
+        
+        .btn-big { padding: 15px; font-size: 1.1em; margin-bottom: 10px; }
+        
+        /* 狀態標籤 */
+        .tag { display: inline-block; background: #e9ecef; padding: 4px 10px; border-radius: 12px; margin: 2px; font-size: 0.85em; border: 1px solid #dee2e6;}
+        
+        /* 門鎖與連線狀態框 */
+        .status-box { padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 1.1em; display: flex; align-items: center; justify-content: center; gap: 10px;}
+        .status-open { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-close { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* Log 列表 */
+        .log-entry { font-size: 0.9em; padding: 10px; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; }
+        .log-allow { background-color: #f0fff4; border-left: 3px solid #2ecc71; }
+        .log-deny { background-color: #fff5f5; border-left: 3px solid #e74c3c; }
+
+        /* Toast 提示框 */
+        #toast { visibility: hidden; min-width: 280px; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 12px 20px; position: fixed; z-index: 999; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        
+        /* 彈出視窗 */
+        #confirm-modal { display: none; background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 20px; animation: pulse 2s infinite;}
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); } }
+
+        /* 藍牙掃描清單 */
+        #bt-scan-list { margin-top: 10px; max-height: 200px; overflow-y: auto; display: none; border: 1px solid #eee; border-radius: 6px; }
+        .bt-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; background: #fff; }
+        .bt-item:hover { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+    <div id="toast">提示訊息</div>
+
+    <div class="header-row">
+        <h2>🔐 智慧門禁系統</h2>
+        <div class="mode-badge" onclick="switchMode()" id="modeBtn">切換至後台</div>
+    </div>
+
+    <div id="globalStatus" class="status-box status-close">
+        <span id="doorIcon">🔒</span> 
+        <span id="doorStatusText">讀取中...</span>
+    </div>
+
+    <div id="user-section">
+        <div class="card card-user">
+            <h3>👋 訪客面板</h3>
+            <p style="text-align:center; color:#666; margin-bottom:20px;">請感應卡片以進入</p>
+            
+            <div id="confirm-modal">
+                <h3 style="margin:0 0 10px 0">⚠️ 手機確認請求</h3>
+                <p>已偵測到 Level 3 權限卡片，等待您的批准...</p>
+                <button class="btn btn-success" onclick="grantAccess()">批准開門</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-section">
+        
+        <div class="card card-admin">
+            <h3>📡 裝置與連線</h3>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span>連線狀態: <span id="statusText">檢查中...</span></span>
+                <span style="font-size:0.85em; color:#888;">最後訊號: <span id="lastSeenTime">--</span></span>
+            </div>
+            <button class="btn btn-danger btn-big" onclick="remoteOpen()">一鍵開門 / 關門</button>
+        </div>
+
+        <div class="card card-admin">
+            <h3>📋 最近進出紀錄</h3>
+            <div id="logs-container" style="max-height: 250px; overflow-y: auto; border:1px solid #eee; border-radius:6px; margin-bottom:10px;">
+                <div style="padding:20px; text-align:center; color:#999">載入中...</div>
+            </div>
+            <button class="btn btn-outline" style="width:auto; float:right; font-size:0.8em; padding:5px 10px;" onclick="clearLogs()">清空紀錄</button>
+            <div style="clear:both"></div>
+        </div>
+
+        <div class="card card-admin">
+            <h3>⚙️ 安全與權限設定</h3>
+            
+            <label style="font-weight:bold; display:block; margin-bottom:5px;">
+                目前等級: <span id="currentLevelTxt" style="color:#2980b9">讀取中...</span>
+            </label>
+            <div style="display:flex; gap:10px; margin-bottom: 20px;">
+                <select id="levelSelect" style="flex:1; padding:8px; border-radius:4px; border:1px solid #ddd;">
+                    <option value="1">Level 1: 僅 RFID</option>
+                    <option value="2">Level 2: RFID + 藍牙</option>
+                    <option value="3">Level 3: RFID + 手機確認</option>
+                </select>
+                <button class="btn btn-primary" style="width:auto; margin:0;" onclick="updateLevelManual()">變更</button>
+            </div>
+
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>💳 RFID 名單</h4>
+                <button class="btn btn-outline" style="width:auto; font-size:0.8em; padding:4px 8px;" onclick="clearList('uid')">清空</button>
+            </div>
+            <div id="uidListContainer" style="margin-bottom:10px; min-height:30px;"><small>無資料</small></div>
+            <button class="btn btn-primary" id="regBtn" onclick="toggleRegisterMode()">進入註冊模式</button>
+            
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>⌚ 藍牙裝置 (MAC)</h4>
+                <button class="btn btn-outline" style="width:auto; font-size:0.8em; padding:4px 8px;" onclick="clearList('bt')">清空</button>
+            </div>
+            <div id="btListContainer" style="margin-bottom:10px; min-height:30px; word-break: break-all;"><small>無資料</small></div>
+            <button class="btn btn-outline" onclick="scanBluetooth()">掃描並新增</button>
+            
+            <div id="bt-scan-list"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        // --- 請填入你的 Firebase 設定 ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBr9BNcRZItSaanoztoEO3NRLmXaYOvzHg",
+            authDomain: "smart-door-8677e.firebaseapp.com",
+            databaseURL: "https://smart-door-8677e-default-rtdb.firebaseio.com",
+            projectId: "smart-door-8677e",
+            storageBucket: "smart-door-8677e.firebasestorage.app",
+            messagingSenderId: "846155740238",
+            appId: "1:846155740238:web:797b890a695b71fc78ff1f",
+            measurementId: "G-V17CK6E6X5"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        let currentBTs = "";
+        let lastTs = 0; // 避免重複顯示 Toast
+
+        // 1. 切換前後台 (密碼 123)
+        let isAdmin = false;
+        function switchMode() {
+            if (!isAdmin) {
+                const pwd = prompt("請輸入後台密碼:", "");
+                if (pwd === "123") { 
+                    isAdmin = true;
+                    document.getElementById('user-section').style.display = 'none';
+                    document.querySelectorAll('.card-admin').forEach(el => el.style.display = 'block');
+                    document.getElementById('modeBtn').innerText = "返回使用者";
+                    document.getElementById('modeBtn').style.background = "#ffc107";
+                } else if (pwd !== null) {
+                    alert("密碼錯誤");
+                }
+            } else {
+                isAdmin = false;
+                document.getElementById('user-section').style.display = 'block';
+                document.querySelectorAll('.card-admin').forEach(el => el.style.display = 'none');
+                document.getElementById('modeBtn').innerText = "切換至後台";
+                document.getElementById('modeBtn').style.background = "#e2e6ea";
+            }
+        }
+
+        // 2. 門鎖狀態 (UI 同步)
+        db.ref('status/door_open').on('value', (s) => {
+            const isOpen = s.val();
+            const box = document.getElementById('globalStatus');
+            const txt = document.getElementById('doorStatusText');
+            const icon = document.getElementById('doorIcon');
+            
+            if (isOpen) {
+                box.className = "status-box status-open";
+                txt.innerText = "已開啟";
+                icon.innerText = "🔓";
+            } else {
+                box.className = "status-box status-close";
+                txt.innerText = "已上鎖";
+                icon.innerText = "🔒";
+            }
+        });
+
+        // 3. 刷卡即時回饋 (Toast)
+        db.ref('status/auth_latest').on('value', (s) => {
+            const data = s.val();
+            if (!data) return;
+            if (data.ts && data.ts !== lastTs) {
+                lastTs = data.ts;
+                showToast(data.success, data.msg);
+            }
+        });
+
+        function showToast(success, msg) {
+            const x = document.getElementById("toast");
+            x.innerText = (success ? "✅ " : "❌ ") + msg;
+            x.style.backgroundColor = success ? "#2ecc71" : "#e74c3c";
+            x.className = "show";
+            setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
+        }
+
+        // 4. 進出紀錄 (Logs)
+        db.ref('logs').limitToLast(15).on('value', (snapshot) => {
+            const container = document.getElementById('logs-container');
+            container.innerHTML = "";
+            const logs = [];
+            snapshot.forEach(child => logs.unshift(child.val())); 
+
+            if (logs.length === 0) {
+                container.innerHTML = "<div style='padding:20px; text-align:center; color:#999'>暫無紀錄</div>";
+                return;
+            }
+
+            logs.forEach(log => {
+                const div = document.createElement('div');
+                const isAllow = (log.result === 'allow');
+                div.className = `log-entry ${isAllow ? 'log-allow' : 'log-deny'}`;
+                div.innerHTML = `
+                    <div>
+                        <strong>${isAllow ? '允許' : '拒絕'}</strong> 
+                        <span style="font-size:0.8em; color:#666; margin-left:5px;">(${log.type})</span>
+                        <div style="font-size:0.8em; color:#888">UID: ${log.uid}</div>
+                    </div>
+                    <div style="text-align:right">
+                        <small style="font-weight:bold">${log.msg}</small>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        });
+
+        // 5. 連線狀態判定 (15秒超時)
+        let lastSeenTimestamp = 0;
+        const statusTextEl = document.getElementById('statusText');
+        const lastSeenEl = document.getElementById('lastSeenTime');
+
+        db.ref('status/last_seen').on('value', () => {
+            lastSeenTimestamp = Date.now();
+            updateConnectionUI(0);
+        });
+
+        setInterval(() => {
+            if (lastSeenTimestamp === 0) return;
+            const diff = Math.floor((Date.now() - lastSeenTimestamp) / 1000);
+            updateConnectionUI(diff);
+        }, 1000);
+
+        function updateConnectionUI(diff) {
+            lastSeenEl.innerText = `${diff} 秒前`;
+            const controls = document.querySelectorAll('#admin-section button, #admin-section select');
+            
+            if (diff < 15) { 
+                statusTextEl.innerHTML = "<span style='color:#2ecc71; font-weight:bold'>● 線上</span>";
+                controls.forEach(el => el.disabled = false);
+            } else {
+                statusTextEl.innerHTML = "<span style='color:#e74c3c; font-weight:bold'>⚠️ 離線</span>";
+                controls.forEach(el => el.disabled = true);
+            }
+        }
+
+        // --- 功能函式 ---
+
+        // 安全等級
+        db.ref('config/security_level').on('value', s => {
+            document.getElementById('currentLevelTxt').innerText = "Level " + s.val();
+            document.getElementById('levelSelect').value = s.val();
+        });
+        
+        function updateLevelManual() {
+            const val = document.getElementById('levelSelect').value;
+            if(confirm(`確定將安全等級改為 Level ${val} ?`)) {
+                db.ref('config/security_level').set(parseInt(val));
+                alert("指令已發送");
+            }
+        }
+
+        // 遠端開門
+        function remoteOpen() {
+            if(confirm("確定要執行遠端開/關門？")) db.ref('cmd/remote_open').set(true);
+        }
+
+        // Level 3 批准
+        db.ref('status/request_access').on('value', s => {
+            document.getElementById('confirm-modal').style.display = s.val() ? 'block' : 'none';
+        });
+        function grantAccess() {
+            db.ref('status/grant_access').set(true);
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+
+        // 註冊模式
+        db.ref('config/system_mode').on('value', s => {
+            const btn = document.getElementById('regBtn');
+            if (s.val() === 'register') {
+                btn.innerText = "⏳ 等待感應卡片...";
+                btn.className = "btn btn-danger";
+            } else {
+                btn.innerText = "進入註冊模式";
+                btn.className = "btn btn-primary";
+            }
+        });
+        function toggleRegisterMode() { db.ref('config/system_mode').set('register'); }
+
+        // 清除資料
+        function clearLogs() { if(confirm("清空紀錄？")) db.ref('logs').remove(); }
+        function clearList(type) {
+            if(confirm("確定清空？此操作無法復原。")) {
+                db.ref(type === 'uid' ? 'config/authorized_uids_list' : 'config/authorized_bt_macs_list').set("");
+            }
+        }
+
+        // 列表渲染
+        db.ref('config/authorized_uids_list').on('value', s => renderList(s.val(), 'uidListContainer'));
+        db.ref('config/authorized_bt_macs_list').on('value', s => {
+            currentBTs = s.val() || "";
+            renderList(s.val(), 'btListContainer');
+        });
+
+        function renderList(str, elementId) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = "";
+            if (!str) { container.innerHTML = "<small style='color:#999'>無資料</small>"; return; }
+            str.split(',').forEach(item => {
+                if(item) {
+                    const tag = document.createElement('span');
+                    tag.className = 'tag';
+                    tag.innerText = item;
+                    container.appendChild(tag);
+                }
+            });
+        }
+
+        // 藍牙掃描
+        function scanBluetooth() {
+            document.getElementById('bt-scan-list').style.display = 'none';
+            db.ref('temp/bt_scan_results').remove();
+            db.ref('cmd/scan_bt').set(true);
+            alert("ESP32 正在掃描 (需約5秒)，請稍候...");
+        }
+
+        db.ref('temp/bt_scan_results').on('value', s => {
+            const devices = s.val();
+            const list = document.getElementById('bt-scan-list');
+            if(devices) {
+                list.style.display = 'block';
+                list.innerHTML = "";
+                for (const k in devices) {
+                    const d = devices[k];
+                    const item = document.createElement('div');
+                    item.className = 'bt-item';
+                    item.innerHTML = `<span>${d.name || "未命名"}</span><span style="font-family:monospace">${d.mac}</span>`;
+                    item.onclick = () => addBluetooth(d.mac);
+                    list.appendChild(item);
+                }
+            }
+        });
+
+        function addBluetooth(newMac) {
+            // 自動移除冒號，確保格式統一
+            const cleanMac = newMac.replace(/:/g, '').toUpperCase();
+            if (currentBTs.includes(cleanMac)) { alert("此裝置已在名單中"); return; }
+            
+            if (confirm(`將 ${newMac} (儲存為 ${cleanMac}) 加入名單?`)) {
+                let newList = currentBTs;
+                if (newList.length > 0) newList += ",";
+                newList += cleanMac;
+                db.ref('config/authorized_bt_macs_list').set(newList);
+                document.getElementById('bt-scan-list').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 智慧門禁控制台</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f4f6f9; color: #333; }
+        h1, h2 { color: #2c3e50; }
+        
+        /* 卡片容器樣式 */
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; transition: transform 0.2s; }
+        .card-admin { border-left: 5px solid #dc3545; display: none; } /* 後台預設隱藏 */
+        .card-user { border-left: 5px solid #28a745; }
+        
+        /* 標題與按鈕排版 */
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .mode-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; background: #e2e6ea; cursor: pointer; color: #555;}
+        .mode-badge:hover { background: #dbe2e8; }
+        
+        /* 按鈕樣式 */
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; width: 100%; margin-top: 5px; transition: 0.2s; font-weight: 500;}
+        .btn:hover { filter: brightness(95%); }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .btn-primary { background: #3498db; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-success { background: #2ecc71; color: white; }
+        .btn-outline { background: transparent; border: 1px solid #3498db; color: #3498db; }
+        .btn-outline:hover { background: #ebf5fb; }
+        
+        .btn-big { padding: 15px; font-size: 1.1em; margin-bottom: 10px; }
+        
+        /* 狀態標籤 */
+        .tag { display: inline-block; background: #e9ecef; padding: 4px 10px; border-radius: 12px; margin: 2px; font-size: 0.85em; border: 1px solid #dee2e6;}
+        
+        /* 門鎖與連線狀態框 */
+        .status-box { padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 1.1em; display: flex; align-items: center; justify-content: center; gap: 10px;}
+        .status-open { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-close { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* Log 列表 */
+        .log-entry { font-size: 0.9em; padding: 10px; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; }
+        .log-allow { background-color: #f0fff4; border-left: 3px solid #2ecc71; }
+        .log-deny { background-color: #fff5f5; border-left: 3px solid #e74c3c; }
+
+        /* Toast 提示框 */
+        #toast { visibility: hidden; min-width: 280px; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 12px 20px; position: fixed; z-index: 999; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        
+        /* 彈出視窗 */
+        #confirm-modal { display: none; background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 20px; animation: pulse 2s infinite;}
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); } }
+
+        /* 藍牙掃描清單 */
+        #bt-scan-list { margin-top: 10px; max-height: 200px; overflow-y: auto; display: none; border: 1px solid #eee; border-radius: 6px; }
+        .bt-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; background: #fff; }
+        .bt-item:hover { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+    <div id="toast">提示訊息</div>
+
+    <div class="header-row">
+        <h2>🔐 智慧門禁系統</h2>
+        <div class="mode-badge" onclick="switchMode()" id="modeBtn">切換至後台</div>
+    </div>
+
+    <div id="globalStatus" class="status-box status-close">
+        <span id="doorIcon">🔒</span> 
+        <span id="doorStatusText">讀取中...</span>
+    </div>
+
+    <div id="user-section">
+        <div class="card card-user">
+            <h3>👋 訪客面板</h3>
+            <p style="text-align:center; color:#666; margin-bottom:20px;">請感應卡片以進入</p>
+            
+            <div id="confirm-modal">
+                <h3 style="margin:0 0 10px 0">⚠️ 手機確認請求</h3>
+                <p>已偵測到 Level 3 權限卡片，等待您的批准...</p>
+                <button class="btn btn-success" onclick="grantAccess()">批准開門</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-section">
+        
+        <div class="card card-admin">
+            <h3>📡 裝置與連線</h3>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span>連線狀態: <span id="statusText">檢查中...</span></span>
+                <span style="font-size:0.85em; color:#888;">最後訊號: <span id="lastSeenTime">--</span></span>
+            </div>
+            <button class="btn btn-danger btn-big" onclick="remoteOpen()">一鍵開門 / 關門</button>
+        </div>
+
+        <div class="card card-admin">
+            <h3>📋 最近進出紀錄</h3>
+            <div id="logs-container" style="max-height: 250px; overflow-y: auto; border:1px solid #eee; border-radius:6px; margin-bottom:10px;">
+                <div style="padding:20px; text-align:center; color:#999">載入中...</div>
+            </div>
+            <button class="btn btn-outline" style="width:auto; float:right; font-size:0.8em; padding:5px 10px;" onclick="clearLogs()">清空紀錄</button>
+            <div style="clear:both"></div>
+        </div>
+
+        <div class="card card-admin">
+            <h3>⚙️ 安全與權限設定</h3>
+            
+            <label style="font-weight:bold; display:block; margin-bottom:5px;">
+                目前等級: <span id="currentLevelTxt" style="color:#2980b9">讀取中...</span>
+            </label>
+            <div style="display:flex; gap:10px; margin-bottom: 20px;">
+                <select id="levelSelect" style="flex:1; padding:8px; border-radius:4px; border:1px solid #ddd;">
+                    <option value="1">Level 1: 僅 RFID</option>
+                    <option value="2">Level 2: RFID + 藍牙</option>
+                    <option value="3">Level 3: RFID + 手機確認</option>
+                </select>
+                <button class="btn btn-primary" style="width:auto; margin:0;" onclick="updateLevelManual()">變更</button>
+            </div>
+
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>💳 RFID 名單</h4>
+                <button class="btn btn-outline" style="width:auto; font-size:0.8em; padding:4px 8px;" onclick="clearList('uid')">清空</button>
+            </div>
+            <div id="uidListContainer" style="margin-bottom:10px; min-height:30px;"><small>無資料</small></div>
+            <button class="btn btn-primary" id="regBtn" onclick="toggleRegisterMode()">進入註冊模式</button>
+            
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>⌚ 藍牙裝置 (MAC)</h4>
+                <button class="btn btn-outline" style="width:auto; font-size:0.8em; padding:4px 8px;" onclick="clearList('bt')">清空</button>
+            </div>
+            <div id="btListContainer" style="margin-bottom:10px; min-height:30px; word-break: break-all;"><small>無資料</small></div>
+            <button class="btn btn-outline" onclick="scanBluetooth()">掃描並新增</button>
+            
+            <div id="bt-scan-list"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        // --- 請填入你的 Firebase 設定 ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBr9BNcRZItSaanoztoEO3NRLmXaYOvzHg",
+            authDomain: "smart-door-8677e.firebaseapp.com",
+            databaseURL: "https://smart-door-8677e-default-rtdb.firebaseio.com",
+            projectId: "smart-door-8677e",
+            storageBucket: "smart-door-8677e.firebasestorage.app",
+            messagingSenderId: "846155740238",
+            appId: "1:846155740238:web:797b890a695b71fc78ff1f",
+            measurementId: "G-V17CK6E6X5"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        let currentBTs = "";
+        let lastTs = 0; // 避免重複顯示 Toast
+
+        // 1. 切換前後台 (密碼 123)
+        let isAdmin = false;
+        function switchMode() {
+            if (!isAdmin) {
+                const pwd = prompt("請輸入後台密碼:", "");
+                if (pwd === "123") { 
+                    isAdmin = true;
+                    document.getElementById('user-section').style.display = 'none';
+                    document.querySelectorAll('.card-admin').forEach(el => el.style.display = 'block');
+                    document.getElementById('modeBtn').innerText = "返回使用者";
+                    document.getElementById('modeBtn').style.background = "#ffc107";
+                } else if (pwd !== null) {
+                    alert("密碼錯誤");
+                }
+            } else {
+                isAdmin = false;
+                document.getElementById('user-section').style.display = 'block';
+                document.querySelectorAll('.card-admin').forEach(el => el.style.display = 'none');
+                document.getElementById('modeBtn').innerText = "切換至後台";
+                document.getElementById('modeBtn').style.background = "#e2e6ea";
+            }
+        }
+
+        // 2. 門鎖狀態 (UI 同步)
+        db.ref('status/door_open').on('value', (s) => {
+            const isOpen = s.val();
+            const box = document.getElementById('globalStatus');
+            const txt = document.getElementById('doorStatusText');
+            const icon = document.getElementById('doorIcon');
+            
+            if (isOpen) {
+                box.className = "status-box status-open";
+                txt.innerText = "已開啟";
+                icon.innerText = "🔓";
+            } else {
+                box.className = "status-box status-close";
+                txt.innerText = "已上鎖";
+                icon.innerText = "🔒";
+            }
+        });
+
+        // 3. 刷卡即時回饋 (Toast)
+        db.ref('status/auth_latest').on('value', (s) => {
+            const data = s.val();
+            if (!data) return;
+            if (data.ts && data.ts !== lastTs) {
+                lastTs = data.ts;
+                showToast(data.success, data.msg);
+            }
+        });
+
+        function showToast(success, msg) {
+            const x = document.getElementById("toast");
+            x.innerText = (success ? "✅ " : "❌ ") + msg;
+            x.style.backgroundColor = success ? "#2ecc71" : "#e74c3c";
+            x.className = "show";
+            setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
+        }
+
+        // 4. 進出紀錄 (Logs)
+        db.ref('logs').limitToLast(15).on('value', (snapshot) => {
+            const container = document.getElementById('logs-container');
+            container.innerHTML = "";
+            const logs = [];
+            snapshot.forEach(child => logs.unshift(child.val())); 
+
+            if (logs.length === 0) {
+                container.innerHTML = "<div style='padding:20px; text-align:center; color:#999'>暫無紀錄</div>";
+                return;
+            }
+
+            logs.forEach(log => {
+                const div = document.createElement('div');
+                const isAllow = (log.result === 'allow');
+                div.className = `log-entry ${isAllow ? 'log-allow' : 'log-deny'}`;
+                div.innerHTML = `
+                    <div>
+                        <strong>${isAllow ? '允許' : '拒絕'}</strong> 
+                        <span style="font-size:0.8em; color:#666; margin-left:5px;">(${log.type})</span>
+                        <div style="font-size:0.8em; color:#888">UID: ${log.uid}</div>
+                    </div>
+                    <div style="text-align:right">
+                        <small style="font-weight:bold">${log.msg}</small>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        });
+
+        // 5. 連線狀態判定 (15秒超時)
+        let lastSeenTimestamp = 0;
+        const statusTextEl = document.getElementById('statusText');
+        const lastSeenEl = document.getElementById('lastSeenTime');
+
+        db.ref('status/last_seen').on('value', () => {
+            lastSeenTimestamp = Date.now();
+            updateConnectionUI(0);
+        });
+
+        setInterval(() => {
+            if (lastSeenTimestamp === 0) return;
+            const diff = Math.floor((Date.now() - lastSeenTimestamp) / 1000);
+            updateConnectionUI(diff);
+        }, 1000);
+
+        function updateConnectionUI(diff) {
+            lastSeenEl.innerText = `${diff} 秒前`;
+            const controls = document.querySelectorAll('#admin-section button, #admin-section select');
+            
+            if (diff < 15) { 
+                statusTextEl.innerHTML = "<span style='color:#2ecc71; font-weight:bold'>● 線上</span>";
+                controls.forEach(el => el.disabled = false);
+            } else {
+                statusTextEl.innerHTML = "<span style='color:#e74c3c; font-weight:bold'>⚠️ 離線</span>";
+                controls.forEach(el => el.disabled = true);
+            }
+        }
+
+        // --- 功能函式 ---
+
+        // 安全等級
+        db.ref('config/security_level').on('value', s => {
+            document.getElementById('currentLevelTxt').innerText = "Level " + s.val();
+            document.getElementById('levelSelect').value = s.val();
+        });
+        
+        function updateLevelManual() {
+            const val = document.getElementById('levelSelect').value;
+            if(confirm(`確定將安全等級改為 Level ${val} ?`)) {
+                db.ref('config/security_level').set(parseInt(val));
+                alert("指令已發送");
+            }
+        }
+
+        // 遠端開門
+        function remoteOpen() {
+            if(confirm("確定要執行遠端開/關門？")) db.ref('cmd/remote_open').set(true);
+        }
+
+        // Level 3 批准
+        db.ref('status/request_access').on('value', s => {
+            document.getElementById('confirm-modal').style.display = s.val() ? 'block' : 'none';
+        });
+        function grantAccess() {
+            db.ref('status/grant_access').set(true);
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+
+        // 註冊模式
+        db.ref('config/system_mode').on('value', s => {
+            const btn = document.getElementById('regBtn');
+            if (s.val() === 'register') {
+                btn.innerText = "⏳ 等待感應卡片...";
+                btn.className = "btn btn-danger";
+            } else {
+                btn.innerText = "進入註冊模式";
+                btn.className = "btn btn-primary";
+            }
+        });
+        function toggleRegisterMode() { db.ref('config/system_mode').set('register'); }
+
+        // 清除資料
+        function clearLogs() { if(confirm("清空紀錄？")) db.ref('logs').remove(); }
+        function clearList(type) {
+            if(confirm("確定清空？此操作無法復原。")) {
+                db.ref(type === 'uid' ? 'config/authorized_uids_list' : 'config/authorized_bt_macs_list').set("");
+            }
+        }
+
+        // 列表渲染
+        db.ref('config/authorized_uids_list').on('value', s => renderList(s.val(), 'uidListContainer'));
+        db.ref('config/authorized_bt_macs_list').on('value', s => {
+            currentBTs = s.val() || "";
+            renderList(s.val(), 'btListContainer');
+        });
+
+        function renderList(str, elementId) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = "";
+            if (!str) { container.innerHTML = "<small style='color:#999'>無資料</small>"; return; }
+            str.split(',').forEach(item => {
+                if(item) {
+                    const tag = document.createElement('span');
+                    tag.className = 'tag';
+                    tag.innerText = item;
+                    container.appendChild(tag);
+                }
+            });
+        }
+
+        // 藍牙掃描
+        function scanBluetooth() {
+            document.getElementById('bt-scan-list').style.display = 'none';
+            db.ref('temp/bt_scan_results').remove();
+            db.ref('cmd/scan_bt').set(true);
+            alert("ESP32 正在掃描 (需約5秒)，請稍候...");
+        }
+
+        db.ref('temp/bt_scan_results').on('value', s => {
+            const devices = s.val();
+            const list = document.getElementById('bt-scan-list');
+            if(devices) {
+                list.style.display = 'block';
+                list.innerHTML = "";
+                for (const k in devices) {
+                    const d = devices[k];
+                    const item = document.createElement('div');
+                    item.className = 'bt-item';
+                    item.innerHTML = `<span>${d.name || "未命名"}</span><span style="font-family:monospace">${d.mac}</span>`;
+                    item.onclick = () => addBluetooth(d.mac);
+                    list.appendChild(item);
+                }
+            }
+        });
+
+        function addBluetooth(newMac) {
+            // 自動移除冒號，確保格式統一
+            const cleanMac = newMac.replace(/:/g, '').toUpperCase();
+            if (currentBTs.includes(cleanMac)) { alert("此裝置已在名單中"); return; }
+            
+            if (confirm(`將 ${newMac} (儲存為 ${cleanMac}) 加入名單?`)) {
+                let newList = currentBTs;
+                if (newList.length > 0) newList += ",";
+                newList += cleanMac;
+                db.ref('config/authorized_bt_macs_list').set(newList);
+                document.getElementById('bt-scan-list').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 智慧門禁控制台</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f4f6f9; color: #333; }
+        h1, h2 { color: #2c3e50; }
+        
+        /* 卡片容器樣式 */
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; transition: transform 0.2s; }
+        .card-admin { border-left: 5px solid #dc3545; display: none; } /* 後台預設隱藏 */
+        .card-user { border-left: 5px solid #28a745; }
+        
+        /* 標題與按鈕排版 */
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .mode-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; background: #e2e6ea; cursor: pointer; color: #555;}
+        .mode-badge:hover { background: #dbe2e8; }
+        
+        /* 按鈕樣式 */
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; width: 100%; margin-top: 5px; transition: 0.2s; font-weight: 500;}
+        .btn:hover { filter: brightness(95%); }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .btn-primary { background: #3498db; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-success { background: #2ecc71; color: white; }
+        .btn-outline { background: transparent; border: 1px solid #3498db; color: #3498db; }
+        .btn-outline:hover { background: #ebf5fb; }
+        
+        .btn-big { padding: 15px; font-size: 1.1em; margin-bottom: 10px; }
+        
+        /* 狀態標籤 */
+        .tag { display: inline-block; background: #e9ecef; padding: 4px 10px; border-radius: 12px; margin: 2px; font-size: 0.85em; border: 1px solid #dee2e6;}
+        
+        /* 門鎖與連線狀態框 */
+        .status-box { padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 1.1em; display: flex; align-items: center; justify-content: center; gap: 10px;}
+        .status-open { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-close { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* Log 列表 */
+        .log-entry { font-size: 0.9em; padding: 10px; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; }
+        .log-allow { background-color: #f0fff4; border-left: 3px solid #2ecc71; }
+        .log-deny { background-color: #fff5f5; border-left: 3px solid #e74c3c; }
+
+        /* Toast 提示框 */
+        #toast { visibility: hidden; min-width: 280px; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 12px 20px; position: fixed; z-index: 999; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        
+        /* 彈出視窗 */
+        #confirm-modal { display: none; background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 20px; animation: pulse 2s infinite;}
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); } }
+
+        /* 藍牙掃描清單 */
+        #bt-scan-list { margin-top: 10px; max-height: 200px; overflow-y: auto; display: none; border: 1px solid #eee; border-radius: 6px; }
+        .bt-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; background: #fff; }
+        .bt-item:hover { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+    <div id="toast">提示訊息</div>
+
+    <div class="header-row">
+        <h2>🔐 智慧門禁系統</h2>
+        <div class="mode-badge" onclick="switchMode()" id="modeBtn">切換至後台</div>
+    </div>
+
+    <div id="globalStatus" class="status-box status-close">
+        <span id="doorIcon">🔒</span> 
+        <span id="doorStatusText">讀取中...</span>
+    </div>
+
+    <div id="user-section">
+        <div class="card card-user">
+            <h3>👋 訪客面板</h3>
+            <p style="text-align:center; color:#666; margin-bottom:20px;">請感應卡片以進入</p>
+            
+            <div id="confirm-modal">
+                <h3 style="margin:0 0 10px 0">⚠️ 手機確認請求</h3>
+                <p>已偵測到 Level 3 權限卡片，等待您的批准...</p>
+                <button class="btn btn-success" onclick="grantAccess()">批准開門</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-section">
+        
+        <div class="card card-admin">
+            <h3>📡 裝置與連線</h3>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span>連線狀態: <span id="statusText">檢查中...</span></span>
+                <span style="font-size:0.85em; color:#888;">最後訊號: <span id="lastSeenTime">--</span></span>
+            </div>
+            <button class="btn btn-danger btn-big" onclick="remoteOpen()">一鍵開門 / 關門</button>
+        </div>
+
+        <div class="card card-admin">
+            <h3>📋 最近進出紀錄</h3>
+            <div id="logs-container" style="max-height: 250px; overflow-y: auto; border:1px solid #eee; border-radius:6px; margin-bottom:10px;">
+                <div style="padding:20px; text-align:center; color:#999">載入中...</div>
+            </div>
+            <button class="btn btn-outline" style="width:auto; float:right; font-size:0.8em; padding:5px 10px;" onclick="clearLogs()">清空紀錄</button>
+            <div style="clear:both"></div>
+        </div>
+
+        <div class="card card-admin">
+            <h3>⚙️ 安全與權限設定</h3>
+            
+            <label style="font-weight:bold; display:block; margin-bottom:5px;">
+                目前等級: <span id="currentLevelTxt" style="color:#2980b9">讀取中...</span>
+            </label>
+            <div style="display:flex; gap:10px; margin-bottom: 20px;">
+                <select id="levelSelect" style="flex:1; padding:8px; border-radius:4px; border:1px solid #ddd;">
+                    <option value="1">Level 1: 僅 RFID</option>
+                    <option value="2">Level 2: RFID + 藍牙</option>
+                    <option value="3">Level 3: RFID + 手機確認</option>
+                </select>
+                <button class="btn btn-primary" style="width:auto; margin:0;" onclick="updateLevelManual()">變更</button>
+            </div>
+
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>💳 RFID 名單</h4>
+                <button class="btn btn-outline" style="width:auto; font-size:0.8em; padding:4px 8px;" onclick="clearList('uid')">清空</button>
+            </div>
+            <div id="uidListContainer" style="margin-bottom:10px; min-height:30px;"><small>無資料</small></div>
+            <button class="btn btn-primary" id="regBtn" onclick="toggleRegisterMode()">進入註冊模式</button>
+            
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>⌚ 藍牙裝置 (MAC)</h4>
+                <button class="btn btn-outline" style="width:auto; font-size:0.8em; padding:4px 8px;" onclick="clearList('bt')">清空</button>
+            </div>
+            <div id="btListContainer" style="margin-bottom:10px; min-height:30px; word-break: break-all;"><small>無資料</small></div>
+            <button class="btn btn-outline" onclick="scanBluetooth()">掃描並新增</button>
+            
+            <div id="bt-scan-list"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        // --- 請填入你的 Firebase 設定 ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBr9BNcRZItSaanoztoEO3NRLmXaYOvzHg",
+            authDomain: "smart-door-8677e.firebaseapp.com",
+            databaseURL: "https://smart-door-8677e-default-rtdb.firebaseio.com",
+            projectId: "smart-door-8677e",
+            storageBucket: "smart-door-8677e.firebasestorage.app",
+            messagingSenderId: "846155740238",
+            appId: "1:846155740238:web:797b890a695b71fc78ff1f",
+            measurementId: "G-V17CK6E6X5"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        let currentBTs = "";
+        let lastTs = 0; // 避免重複顯示 Toast
+
+        // 1. 切換前後台 (密碼 123)
+        let isAdmin = false;
+        function switchMode() {
+            if (!isAdmin) {
+                const pwd = prompt("請輸入後台密碼:", "");
+                if (pwd === "123") { 
+                    isAdmin = true;
+                    document.getElementById('user-section').style.display = 'none';
+                    document.querySelectorAll('.card-admin').forEach(el => el.style.display = 'block');
+                    document.getElementById('modeBtn').innerText = "返回使用者";
+                    document.getElementById('modeBtn').style.background = "#ffc107";
+                } else if (pwd !== null) {
+                    alert("密碼錯誤");
+                }
+            } else {
+                isAdmin = false;
+                document.getElementById('user-section').style.display = 'block';
+                document.querySelectorAll('.card-admin').forEach(el => el.style.display = 'none');
+                document.getElementById('modeBtn').innerText = "切換至後台";
+                document.getElementById('modeBtn').style.background = "#e2e6ea";
+            }
+        }
+
+        // 2. 門鎖狀態 (UI 同步)
+        db.ref('status/door_open').on('value', (s) => {
+            const isOpen = s.val();
+            const box = document.getElementById('globalStatus');
+            const txt = document.getElementById('doorStatusText');
+            const icon = document.getElementById('doorIcon');
+            
+            if (isOpen) {
+                box.className = "status-box status-open";
+                txt.innerText = "已開啟";
+                icon.innerText = "🔓";
+            } else {
+                box.className = "status-box status-close";
+                txt.innerText = "已上鎖";
+                icon.innerText = "🔒";
+            }
+        });
+
+        // 3. 刷卡即時回饋 (Toast)
+        db.ref('status/auth_latest').on('value', (s) => {
+            const data = s.val();
+            if (!data) return;
+            if (data.ts && data.ts !== lastTs) {
+                lastTs = data.ts;
+                showToast(data.success, data.msg);
+            }
+        });
+
+        function showToast(success, msg) {
+            const x = document.getElementById("toast");
+            x.innerText = (success ? "✅ " : "❌ ") + msg;
+            x.style.backgroundColor = success ? "#2ecc71" : "#e74c3c";
+            x.className = "show";
+            setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
+        }
+
+        // 4. 進出紀錄 (Logs)
+        db.ref('logs').limitToLast(15).on('value', (snapshot) => {
+            const container = document.getElementById('logs-container');
+            container.innerHTML = "";
+            const logs = [];
+            snapshot.forEach(child => logs.unshift(child.val())); 
+
+            if (logs.length === 0) {
+                container.innerHTML = "<div style='padding:20px; text-align:center; color:#999'>暫無紀錄</div>";
+                return;
+            }
+
+            logs.forEach(log => {
+                const div = document.createElement('div');
+                const isAllow = (log.result === 'allow');
+                div.className = `log-entry ${isAllow ? 'log-allow' : 'log-deny'}`;
+                div.innerHTML = `
+                    <div>
+                        <strong>${isAllow ? '允許' : '拒絕'}</strong> 
+                        <span style="font-size:0.8em; color:#666; margin-left:5px;">(${log.type})</span>
+                        <div style="font-size:0.8em; color:#888">UID: ${log.uid}</div>
+                    </div>
+                    <div style="text-align:right">
+                        <small style="font-weight:bold">${log.msg}</small>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        });
+
+        // 5. 連線狀態判定 (15秒超時)
+        let lastSeenTimestamp = 0;
+        const statusTextEl = document.getElementById('statusText');
+        const lastSeenEl = document.getElementById('lastSeenTime');
+
+        db.ref('status/last_seen').on('value', () => {
+            lastSeenTimestamp = Date.now();
+            updateConnectionUI(0);
+        });
+
+        setInterval(() => {
+            if (lastSeenTimestamp === 0) return;
+            const diff = Math.floor((Date.now() - lastSeenTimestamp) / 1000);
+            updateConnectionUI(diff);
+        }, 1000);
+
+        function updateConnectionUI(diff) {
+            lastSeenEl.innerText = `${diff} 秒前`;
+            const controls = document.querySelectorAll('#admin-section button, #admin-section select');
+            
+            if (diff < 15) { 
+                statusTextEl.innerHTML = "<span style='color:#2ecc71; font-weight:bold'>● 線上</span>";
+                controls.forEach(el => el.disabled = false);
+            } else {
+                statusTextEl.innerHTML = "<span style='color:#e74c3c; font-weight:bold'>⚠️ 離線</span>";
+                controls.forEach(el => el.disabled = true);
+            }
+        }
+
+        // --- 功能函式 ---
+
+        // 安全等級
+        db.ref('config/security_level').on('value', s => {
+            document.getElementById('currentLevelTxt').innerText = "Level " + s.val();
+            document.getElementById('levelSelect').value = s.val();
+        });
+        
+        function updateLevelManual() {
+            const val = document.getElementById('levelSelect').value;
+            if(confirm(`確定將安全等級改為 Level ${val} ?`)) {
+                db.ref('config/security_level').set(parseInt(val));
+                alert("指令已發送");
+            }
+        }
+
+        // 遠端開門
+        function remoteOpen() {
+            if(confirm("確定要執行遠端開/關門？")) db.ref('cmd/remote_open').set(true);
+        }
+
+        // Level 3 批准
+        db.ref('status/request_access').on('value', s => {
+            document.getElementById('confirm-modal').style.display = s.val() ? 'block' : 'none';
+        });
+        function grantAccess() {
+            db.ref('status/grant_access').set(true);
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+
+        // 註冊模式
+        db.ref('config/system_mode').on('value', s => {
+            const btn = document.getElementById('regBtn');
+            if (s.val() === 'register') {
+                btn.innerText = "⏳ 等待感應卡片...";
+                btn.className = "btn btn-danger";
+            } else {
+                btn.innerText = "進入註冊模式";
+                btn.className = "btn btn-primary";
+            }
+        });
+        function toggleRegisterMode() { db.ref('config/system_mode').set('register'); }
+
+        // 清除資料
+        function clearLogs() { if(confirm("清空紀錄？")) db.ref('logs').remove(); }
+        function clearList(type) {
+            if(confirm("確定清空？此操作無法復原。")) {
+                db.ref(type === 'uid' ? 'config/authorized_uids_list' : 'config/authorized_bt_macs_list').set("");
+            }
+        }
+
+        // 列表渲染
+        db.ref('config/authorized_uids_list').on('value', s => renderList(s.val(), 'uidListContainer'));
+        db.ref('config/authorized_bt_macs_list').on('value', s => {
+            currentBTs = s.val() || "";
+            renderList(s.val(), 'btListContainer');
+        });
+
+        function renderList(str, elementId) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = "";
+            if (!str) { container.innerHTML = "<small style='color:#999'>無資料</small>"; return; }
+            str.split(',').forEach(item => {
+                if(item) {
+                    const tag = document.createElement('span');
+                    tag.className = 'tag';
+                    tag.innerText = item;
+                    container.appendChild(tag);
+                }
+            });
+        }
+
+        // 藍牙掃描
+        function scanBluetooth() {
+            document.getElementById('bt-scan-list').style.display = 'none';
+            db.ref('temp/bt_scan_results').remove();
+            db.ref('cmd/scan_bt').set(true);
+            alert("ESP32 正在掃描 (需約5秒)，請稍候...");
+        }
+
+        db.ref('temp/bt_scan_results').on('value', s => {
+            const devices = s.val();
+            const list = document.getElementById('bt-scan-list');
+            if(devices) {
+                list.style.display = 'block';
+                list.innerHTML = "";
+                for (const k in devices) {
+                    const d = devices[k];
+                    const item = document.createElement('div');
+                    item.className = 'bt-item';
+                    item.innerHTML = `<span>${d.name || "未命名"}</span><span style="font-family:monospace">${d.mac}</span>`;
+                    item.onclick = () => addBluetooth(d.mac);
+                    list.appendChild(item);
+                }
+            }
+        });
+
+        function addBluetooth(newMac) {
+            // 自動移除冒號，確保格式統一
+            const cleanMac = newMac.replace(/:/g, '').toUpperCase();
+            if (currentBTs.includes(cleanMac)) { alert("此裝置已在名單中"); return; }
+            
+            if (confirm(`將 ${newMac} (儲存為 ${cleanMac}) 加入名單?`)) {
+                let newList = currentBTs;
+                if (newList.length > 0) newList += ",";
+                newList += cleanMac;
                 db.ref('config/authorized_bt_macs_list').set(newList);
                 document.getElementById('bt-scan-list').style.display = 'none';
             }
