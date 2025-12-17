@@ -100,15 +100,6 @@
         </div>
 
         <div class="card card-admin">
-            <h3>📋 最近進出紀錄</h3>
-            <div id="logs-container" style="max-height: 250px; overflow-y: auto; border:1px solid #eee; border-radius:6px; margin-bottom:10px;">
-                <div style="padding:20px; text-align:center; color:#999">載入中...</div>
-            </div>
-            <button class="btn btn-outline" style="width:auto; float:right; font-size:0.8em; padding:5px 10px;" onclick="clearLogs()">清空紀錄</button>
-            <div style="clear:both"></div>
-        </div>
-
-        <div class="card card-admin">
             <h3>⚙️ 安全與權限設定</h3>
             
             <label style="font-weight:bold; display:block; margin-bottom:5px;">
@@ -142,6 +133,15 @@
             <button class="btn btn-outline" onclick="scanBluetooth()">掃描並新增</button>
             
             <div id="bt-scan-list"></div>
+        </div>
+
+        <div class="card card-admin">
+            <h3>📋 最近進出紀錄 (最新 50 筆)</h3>
+            <div id="logs-container" style="max-height: 400px; overflow-y: auto; border:1px solid #eee; border-radius:6px; margin-bottom:10px;">
+                <div style="padding:20px; text-align:center; color:#999">載入中...</div>
+            </div>
+            <button class="btn btn-outline" style="width:auto; float:right; font-size:0.8em; padding:5px 10px;" onclick="clearLogs()">清空紀錄</button>
+            <div style="clear:both"></div>
         </div>
     </div>
 
@@ -226,8 +226,8 @@
             setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
         }
 
-        // 4. 進出紀錄 (Logs)
-        db.ref('logs').limitToLast(15).on('value', (snapshot) => {
+        // 4. 進出紀錄 (Logs) - [修改] 增加到 limitToLast(50)
+        db.ref('logs').limitToLast(50).on('value', (snapshot) => {
             const container = document.getElementById('logs-container');
             container.innerHTML = "";
             const logs = [];
@@ -242,6 +242,15 @@
                 const div = document.createElement('div');
                 const isAllow = (log.result === 'allow');
                 div.className = `log-entry ${isAllow ? 'log-allow' : 'log-deny'}`;
+                
+                // 嘗試將 timestamp 轉為可讀時間 (如果有 ts_device)
+                let timeStr = "";
+                if(log.ts_device) {
+                    // 這裡僅作簡單標示，因 ESP32 傳的是 millis，無法轉成真實日期
+                    // 若需要真實日期，需 ESP32 搭配 NTP 或由網頁端在此處補上 (但網頁端補的是讀取時間非發生時間)
+                    // 這裡維持原樣，顯示 type 與 uid
+                }
+
                 div.innerHTML = `
                     <div>
                         <strong>${isAllow ? '允許' : '拒絕'}</strong> 
@@ -383,7 +392,6 @@
         });
 
         function addBluetooth(newMac) {
-            // 自動移除冒號，確保格式統一
             const cleanMac = newMac.replace(/:/g, '').toUpperCase();
             if (currentBTs.includes(cleanMac)) { alert("此裝置已在名單中"); return; }
             
