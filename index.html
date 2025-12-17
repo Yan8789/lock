@@ -128,7 +128,7 @@
         function switchMode() {
             if (!isAdmin) {
                 const pwd = prompt("請輸入後台密碼:", "");
-                if (pwd === "admin123") { // 簡易密碼檢查
+                if (pwd === "123") { // 簡易密碼檢查
                     isAdmin = true;
                     document.getElementById('user-section').style.display = 'none';
                     document.getElementById('admin-section').style.display = 'block';
